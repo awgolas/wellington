@@ -7,7 +7,7 @@
 import numpy as np
 
 ################################################################################
-class Utilities:
+class Math:
 
     def dfdx_1d(self, grid, func):
 
@@ -47,6 +47,9 @@ class Utilities:
             sum[i] = np.sum(func[0:i])
         return sum
 
+################################################################################
+class Plotting:
+    pass
 
 
 

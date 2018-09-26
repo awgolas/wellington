@@ -5,13 +5,12 @@
 # Determines level density subfunction values                                  #
 ################################################################################
 from __future__ import print_function
-import matplotlib
 
 import os
 import sys
 import numpy as np
 import math
-from utilities import Utilities
+from utilities import Math
 from library import Loader
 
 ################################################################################
@@ -41,19 +40,23 @@ class GeneralParameters(Loader):
         Z    = self.num_protons
 
         k  = 1.79
-        a  = [15.677, 18.56]
+        a1 = 15.677
+        a2 = 18.56
         ci = (1-k*((N-Z)/A)**2)
-        c  = [a[0]*ci, a[1]*ci, 0.717, 1.21129]
+        c1  = a1*ci
+        c2  = a2*ci
+        c3  = 0.717
+        c4  = 1.21129
 
-        evol  = -c[0]*A
-        esur  = c[1]*A**(0.66667)
-        ecoul = c[2]*(Z**2.0/(A**(0.33333))) - c[3]*(Z**2.0/A)
+        evol  = -c1*A
+        esur  = c2*A**(0.66667)
+        ecoul = c3*((Z**2.0)/(A**0.33333)) - c4*(Z**2.0)/A
 
         if A%2 == 0:
             if Z%2 == 0:
-                delta_m = -11.0/(A**(0.5))
+                delta_m = -11.0/(A**0.5)
             else:
-                delta_m = 11.0/(A**(0.5))
+                delta_m = 11.0/(A**0.5)
         else:
             delta_m = 0.0
 
@@ -61,7 +64,8 @@ class GeneralParameters(Loader):
         m_h = 7.28899
 
         m_ldm = m_n*N + m_h*Z + evol + esur + ecoul + delta_m
-
+        print(m_ldm)
+        print(mass)
         delta_w = mass - m_ldm
 
         return delta_w
@@ -182,22 +186,57 @@ class BackShiftedFermiGasParameters(GeneralParameters):
         sf2 = 0.01389*A**(1.66667)/atilda*((a*u)**(0.5))
         return sf2
 
+    @property
+    def rho_energy(self):
+
+        a = self.afgm
+        u = self.eff_energy
+        pi = self.pi
+
+        rho_e = np.exp(2.0*(a*u))*pi**(0.5)/(12.0*a**(0.25)*u**(1.25))
+        return rho_e
+
+    @property
+    def rho_jpi(self):
+        j = self.spin
+        pi = self.pi
+        sigma2 = self.sigma_squared
+
+        rho_jp = np.exp(-1.0*(j+0.5)**(2.0)/(2.0*sigma2))\
+            *(0.5)*(2.0*j+1)/((8.0*pi*sigma2**(1.5))**(0.5))
+        return rho_jp
+
+    @property
+    def leveldensity(self):
+
+        rho_e = self.rho_energy
+        rho_jpi = self.rho_jpi
+
+        rho = rho_e*rho_jpi
+        return rho
+
+
 ################################################################################
 class CompositeGilbertCameronParameters(GeneralParameters):
+
+    def __init__(self, input):
+        GeneralParameters.__init__(self, input)
+        bsfgm = BackShiftedFermiGasParameters(input)
+        self.fgm_rho_energy = bsfgm.rho_energy
+        self.rho_jpi = bsfgm.rho_jpi
 
 
     @property
     def log_rho(self):
-        excitation_energy = self.excitation_energy
-        fgm_rho = fgm.leveldensity(energy=excitation_energy)
+        fgm_rho = self.fgm_rho_energy
         ln_rho = np.log(fgm_rho)
 
         return ln_rho
 
     @property
     def cutoff_energy(self):
-        util = Utilities()
-
+        util = Math()
+        excitation_energy = self.excitation_energy
         e_m = self.matching_energy
         temp = self.temperature
         ln_rho = self.log_rho
@@ -214,12 +253,12 @@ class CompositeGilbertCameronParameters(GeneralParameters):
         delta = self.delta
         excitation_energy = self.excitation_energy
 
-        e_m = 2.33 + 253/A + delta
+        e_m = 2.33 + 253.0/A + delta
         return e_m
 
     @property
     def temperature(self):
-        util = Utilities()
+        util = Math()
         e_m = self.matching_energy
         excitation_energy = self.excitation_energy
         ln_rho = self.log_rho
@@ -230,5 +269,60 @@ class CompositeGilbertCameronParameters(GeneralParameters):
 
         temp = 1.0/dfdx_ln_rho[em_index]
         return temp
+
+    @property
+    def ct_rho_energy(self):
+
+        cld = self.cum_rho_energy
+        temp = self.temperature
+        rho = cld/temp
+        return rho
+
+    @property
+    def rho_energy(self):
+        util = Math()
+        excitation_energy = self.excitation_energy
+        e_m = self.matching_energy
+        ct_rho_energy = self.ct_rho_energy
+        fgm_rho_energy = self.fgm_rho_energy
+
+        em_index = util.nearest_value_index(excitation_energy, e_m)
+
+        rho = np.zeros(np.shape(excitation_energy))
+
+        rho[0:em_index] = ct_rho_energy[0:em_index]
+        rho[em_index:] = fgm_rho_energy[em_index:]
+
+        return rho
+
+    @property
+    def cum_rho_energy(self):
+        temp = self.temperature
+        excitation_energy = self.excitation_energy
+        cutoff_energy = self.cutoff_energy
+
+        exponent = (excitation_energy - cutoff_energy)/temp
+        cld = np.exp(exponent)
+        return cld
+
+    @property
+    def leveldensity(self):
+        rho_e = self.rho_energy
+        rho_jpi = self.rho_jpi
+
+        rho = rho_e*rho_jpi
+        return rho
+
+################################################################################
+class EmpireGilbertCameronParameters(GeneralParameters):
+
+    def __init__(self, input):
+        GeneralParameters.__init__(self, input)
+        cgcp = CompositeGilbertCameronParameters(input)
+        self.matching_energy = cgcp.matching_energy
+
+
+
+
 ################################################################################
 ##################### End of level_parameters.py ###############################
