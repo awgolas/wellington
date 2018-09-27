@@ -21,114 +21,53 @@ import level_parameters
 
 def run():
 
-    excitation_energy = np.linspace(2,8,num=50)
+    zvv_file = """4.19   2.21655e+01
+4.53   3.59912e+01
+4.88   5.76440e+01
+5.23   7.65317e+01
+5.58   9.38064e+01
+5.93   1.13063e+02
+6.28   1.35094e+02
+6.63   1.61073e+02
+6.98   1.92428e+02
+7.33   2.30762e+02
+7.67   2.77853e+02
+8.02   3.35690e+02
+8.37   4.06536e+02
+8.72   4.92999e+02"""
+
+    lines = zvv_file.split('\n')
+    ldy = []
+    ldx = []
+    for line in lines:
+        sline = line.split('   ')
+        ld = float(sline[1])
+        ex = float(sline[0])
+        ldx.append(ex)
+        ldy.append(ld)
+
+
+
+    excitation_energy = np.linspace(1.85,10,num=50)
     parity = 1
     target = '52Cr'
-    temp = 8
-    spin = [1.0]
+    spin = [1.0]#0.5, 1.0, 1.5, 2.0]
     for j in spin:
         input = {'target' : target,
                  'spin'   : j,
                  'parity' : parity,
                  'excitation_energy' : excitation_energy}
 
-    gcm = level_parameters.CompositeGilbertCameronParameters(input).mass
-    bgsm = level_parameters.BackShiftedFermiGasParameters(input).leveldensity
-    #print(bgsm)
-    print(gcm)
-    #p = plt.scatter(excitation_energy, bgsm)
-    #p = plt.scatter(excitation_energy, gcm)
-    #p.figure.savefig('levden_comp.png')
-        #gcm = GilbertCameronModel(input)
+        #p = plt.scatter(ldx, ldy, label='EMPIRE EGSM rho(u)')
+        #p = plt.scatter(fg_energy, fgm, label='FG rho(u,$I_0$, $\pi_0$)')
+        #p = plt.scatter(gc_energy, gcm, label='GC rho(u,$I_0$, $\pi_0$)')
+        #p = plt.scatter(gc_energy, gcm_rhoe, label='GC rho(u)')
+    #plt.legend(loc=0)
+    #plt.grid()
+    #plt.xlabel('Effective Excitation Energy $MeV$')
+    #plt.ylabel('Level Density $MeV^{-1}$')
+    #p.figure.savefig('rhojpi.png')
 
-        #rho_fgm = bsfgm.leveldensity()
-        #rho_gcm = gcm.leveldensity()
-
-# ################################################################################
-# class BackShiftedFermiGasModel(level_parameters.BackShiftedFermiGasParameters):
-#
-#     def leveldensity(self):
-#
-#         j = self.spin
-#         pi = self.pi
-#         energy=self.excitation_energy
-#
-#         eff_energy = self.eff_energy
-#         a = self.afgm
-#
-#
-#         sigma2 = self.sigma_squared
-#
-#         rho0  = (0.5)
-#         rho1  =       (2.0*j+1.0)
-#         rho2  =       1.0/(2.0*(2.0*pi)**0.5*sigma2**(1.5))
-#         rho3  =       np.exp(((j+0.5)**2.0)*(1/(2*sigma2)))
-#         rho4  =       (pi**0.5)/12.0
-#         rho5  =       np.exp(2.0*(a*eff_energy)**0.5)
-#         rho6  =       1.0/(a**0.25*eff_energy**1.25)
-#
-#         rho = rho1*rho2*rho3*rho4*rho5*rho6
-#         return rho
-#
-#     def cum_level_density(self, leveldensity):
-#         util = Utilities()
-#         cld = util.summation(leveldensity)
-#         return cld
-#
-# ################################################################################
-# class GilbertCameronModel(level_parameters.CompositeGilbertCameronParameters):
-#     """ Utilizes the Composite Gilbert Cameron Model (GCM) in order to determine
-#     level density of a compound nucleus as a function of energy, spin, and parity.
-#     Subfunctions of GCM (e.g., cutoff_energy, temp, delta, and matching_energy)
-#     are included in CompositeGilbertCameronParameters class in level_param.py"""
-#
-#
-#     @property
-#     def leveldensity(self):
-#
-#         cld = self.cum_level_density
-#         temp = self.temperature
-#         rho = cld/temp
-#         return rho
-#
-#     @property
-#     def cum_level_density(self):
-#         temp = self.temperature
-#         excitation_energy = self.excitation_energy
-#         cutoff_energy = self.cutoff_energy
-#
-#         exponent = (excitation_energy - cutoff_energy)/temp
-#         cld = np.exp(exponent)
-#         return cld
-#
-#
-# ################################################################################
-""" This section should calculate the nuclear deformation values"""
-
-"""dynamic deformation
-
-    a2dyn = b*(-1.25*y/(1-x))
-
-    where:
-        y -> angular momentum parameter
-        x -> fissility parameter
-        b -> adjustable parameter
-
-    y = 1.9249*I(I+1)*(I*(I+1)/(eta*A^(7/3)))
-
-    where:
-        I -> angular momentum
-        eta -> neutron proton difference term
-        A -> number of nucleons in nuclei
-
-    eta = 1 - 1.7826*(N-Z)^2*A^-2
-
-    ##
-
-    a2(T,I) = a_{g.s.}*h(T) + a2dyn"""
-
-
-################################################################################
 if __name__ == "__main__":
     run()
 ################################################################################

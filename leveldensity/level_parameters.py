@@ -17,58 +17,21 @@ from library import Loader
 class GeneralParameters(Loader):
 
     def __init__(self, input):
-        self.spin = Loader(input).parameters['spin']
-        self.pi = Loader(input).parameters['parity']
-        self.excitation_energy = Loader(input).parameters['excitation_energy']
-        self.num_protons = Loader(input).parameters['Z']
-        self.mass_number = Loader(input).parameters['A']
-        self.mass = Loader(input).parameters['mass']
-        self.separation_energy = Loader(input).parameters['Bn']
+        load = Loader(input).parameters
+        self.spin = load['spin']
+        self.pi = load['parity']
+        self.excitation_energy = load['excitation_energy']
+        self.num_protons = load['Z']
+        self.mass_number = load['A']
+        self.mass = load['mass']
+        self.separation_energy = load['Bn']
+        self.shell_correction = load['Shell Correction']
 
     @property
     def num_neutrons(self):
         Z = self.num_protons
         A = self.mass_number
         return A - Z
-
-    @property
-    def shell_correction(self):
-
-        mass = self.mass
-        A    = self.mass_number
-        N    = self.num_neutrons
-        Z    = self.num_protons
-
-        k  = 1.79
-        a1 = 15.677
-        a2 = 18.56
-        ci = (1-k*((N-Z)/A)**2)
-        c1  = a1*ci
-        c2  = a2*ci
-        c3  = 0.717
-        c4  = 1.21129
-
-        evol  = -c1*A
-        esur  = c2*A**(0.66667)
-        ecoul = c3*((Z**2.0)/(A**0.33333)) - c4*(Z**2.0)/A
-
-        if A%2 == 0:
-            if Z%2 == 0:
-                delta_m = -11.0/(A**0.5)
-            else:
-                delta_m = 11.0/(A**0.5)
-        else:
-            delta_m = 0.0
-
-        m_n = 8.07144
-        m_h = 7.28899
-
-        m_ldm = m_n*N + m_h*Z + evol + esur + ecoul + delta_m
-        print(m_ldm)
-        print(mass)
-        delta_w = mass - m_ldm
-
-        return delta_w
 
     @property
     def delta(self):
@@ -120,7 +83,9 @@ class BackShiftedFermiGasParameters(GeneralParameters):
         u       = self.eff_energy
         gamma   = self.gamma
 
-        a_param = atilda*(1.0 + u*(1.0/delta_w)*(1.0 - np.exp(-1*gamma*u)))
+        f_u = 1 - np.exp(-1.0*gamma*u)
+
+        a_param = atilda*(1.0 + delta_w/u*f_u)
         return a_param
 
 
@@ -131,6 +96,7 @@ class BackShiftedFermiGasParameters(GeneralParameters):
         beta = 0.195267
 
         at = alpha*A + beta*A**(0.66667)
+
         return at
 
     @property
@@ -139,6 +105,7 @@ class BackShiftedFermiGasParameters(GeneralParameters):
         A    = self.mass_number
 
         g = gam0/(A**(0.33333))
+
         return g
 
     @property
@@ -151,7 +118,8 @@ class BackShiftedFermiGasParameters(GeneralParameters):
         delta   = self.fgm_delta
 
         u   = ex_engy - delta
-        a   = atilda*(1.0 + delta_w/u*(1.0 - np.exp(-1.0*gamma*u)))
+        f_u = 1 - np.exp(-1.0*gamma*u)
+        a = atilda*(1.0 + delta_w/u*f_u)
         sf2 = 0.01389*A**(1.66667)/atilda*((a*u)**(0.5))
         return sf2
 
@@ -182,7 +150,8 @@ class BackShiftedFermiGasParameters(GeneralParameters):
         delta   = self.delta
 
         u   = excitation_energy - delta
-        a   = atilda*(1.0 + delta_w/u*(1.0 - np.exp(-1.0*gamma*u)))
+        f_u = 1 - np.exp(-1.0*gamma*u)
+        a = atilda*(1.0 + delta_w/u*f_u)
         sf2 = 0.01389*A**(1.66667)/atilda*((a*u)**(0.5))
         return sf2
 
@@ -193,7 +162,7 @@ class BackShiftedFermiGasParameters(GeneralParameters):
         u = self.eff_energy
         pi = self.pi
 
-        rho_e = np.exp(2.0*(a*u))*pi**(0.5)/(12.0*a**(0.25)*u**(1.25))
+        rho_e = np.exp(2.0*(a*u)**0.5)*pi**(0.5)/(12.0*a**(0.25)*u**(1.25))
         return rho_e
 
     @property
@@ -224,6 +193,14 @@ class CompositeGilbertCameronParameters(GeneralParameters):
         bsfgm = BackShiftedFermiGasParameters(input)
         self.fgm_rho_energy = bsfgm.rho_energy
         self.rho_jpi = bsfgm.rho_jpi
+
+    @property
+    def eff_energy(self):
+        excitation = self.excitation_energy
+        pairing    = self.delta
+
+        u = excitation - pairing
+        return u
 
 
     @property
@@ -320,7 +297,39 @@ class EmpireGilbertCameronParameters(GeneralParameters):
         GeneralParameters.__init__(self, input)
         cgcp = CompositeGilbertCameronParameters(input)
         self.matching_energy = cgcp.matching_energy
+        self.eff_energy = cgcp.eff_energy
+        self.temperature = cgcp.temperature
 
+    @property
+    def atilda_ignatyuk(self):
+        A = self.mass_number
+
+        return 0.154*A + 6.3*10.0**-5.0*A**2
+
+    @property
+    def gamma_ignatyuk(self):
+        return -0.054
+
+    @property
+    def sigma_squared_ignatyuk(self):
+        A = self.mass_number
+        u = self.eff_energy
+        a = self.aegc
+
+        sigma2 = 0.146*A**(0.6667)*(a*u)**0.5
+        return sigma2
+
+    @property
+    def a_ignatyuk(self):
+        atilda  = self.atilda_ignatyuk
+        delta_w = self.shell_correction
+        u       = self.eff_energy
+        gamma   = self.gamma_ignatyuk
+
+        f_u = 1 - np.exp(-1.0*gamma*u)
+
+        a_param = atilda*(1.0 + delta_w/u*f_u)
+        return a_param
 
 
 

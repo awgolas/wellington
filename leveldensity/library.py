@@ -31,7 +31,8 @@ class Loader:
                            'A'               : nuclear_data['A'],
                            'Z' : nuclear_data['Z'],
                            'mass' : nuclear_data['mass'],
-                           'Bn' : nuclear_data['Bn']}
+                           'Bn' : nuclear_data['Bn'],
+                           'Shell Correction' : nuclear_data['Shell Correction']}
         return calc_parameters
 
     def input(self, inputdict):
@@ -58,6 +59,7 @@ class Loader:
             data = json.load(f)
         isotope_data = data[target]
         return isotope_data
+
 
 ################################################################################
 class Output:
