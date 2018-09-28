@@ -289,48 +289,140 @@ class CompositeGilbertCameronParameters(GeneralParameters):
 
         rho = rho_e*rho_jpi
         return rho
+################################################################################
+class IgnatyukParameters:
+
+    def __init__(self):
+        self.atilda_a = 0.154
+        self.atilda_b = (6.3e-5, 2)
+        self.gamma = -0.054
+
+################################################################################
+class ArthurParameters:
+
+    def __init__(self):
+        self.atilda_a = 0.1375
+        self.atilda_b = (-8.36e-5, 2)
+        self.gamma = -0.054
+
+################################################################################
+class FunctionParameters:
+
+    def __init__(self, model):
+
+        if model == 'ignatyuk':
+            self._param = (0.154, (6.3e-5, 2), -0.054)
+        elif model == 'arthur':
+            self._param = (0.1375, (-8.36e-5, 2), -0.054)
+        elif model == 'iljinov':
+            self._param = (0.144, (9.8e-2, 2.0/3.0), -0.051)
+
+    @property
+    def atilde_a(self):
+        return self._param[0]
+
+    @property
+    def atilde_b(self):
+        return self._param[1]
+
+    @property
+    def gamma(self):
+        return self._param[2]
 
 ################################################################################
 class EmpireGilbertCameronParameters(GeneralParameters):
 
-    def __init__(self, input):
+    def __init__(self, input, model):
         GeneralParameters.__init__(self, input)
+        fp = FunctionParameters(model)
+        self.atilda_a = fp.atilde_a
+        self.atilda_b = fp.atilda_b
+        self.gamma = fp.gamma
+
         cgcp = CompositeGilbertCameronParameters(input)
         self.matching_energy = cgcp.matching_energy
         self.eff_energy = cgcp.eff_energy
         self.temperature = cgcp.temperature
 
     @property
-    def atilda_ignatyuk(self):
+    def atilda(self):
         A = self.mass_number
+        a = self.atilda_a
+        b = self.atilda_b
 
-        return 0.154*A + 6.3*10.0**-5.0*A**2
-
-    @property
-    def gamma_ignatyuk(self):
-        return -0.054
+        return a*A + b[0]*A**b[1]
 
     @property
-    def sigma_squared_ignatyuk(self):
+    def sigma_squared(self):
         A = self.mass_number
         u = self.eff_energy
-        a = self.aegc
+        a = self.a_ignatyuk
 
         sigma2 = 0.146*A**(0.6667)*(a*u)**0.5
         return sigma2
 
     @property
-    def a_ignatyuk(self):
-        atilda  = self.atilda_ignatyuk
+    def a(self):
+        atilda  = self.atilda
         delta_w = self.shell_correction
         u       = self.eff_energy
-        gamma   = self.gamma_ignatyuk
+        gamma   = self.gamma
 
         f_u = 1 - np.exp(-1.0*gamma*u)
 
         a_param = atilda*(1.0 + delta_w/u*f_u)
         return a_param
 
+################################################################################
+class GeneralizedSuperfluidParameters(GeneralParameters):
+
+    @property
+    def a_stndrd(self):
+
+    @property
+    def a_crit(self):
+
+    @property
+    def a_cum(self):
+
+    @property
+    def temp_crit(self):
+
+    @property
+    def temp_stndrd(self):
+
+    @property
+    def temp_cum(self):
+
+    @property
+    def det_crit(self):
+
+    @property
+    def det_stndrd(self):
+
+    @property
+    def
+
+
+######################################
+    @property
+    def crit_temp(self):
+        pass
+
+    @property
+    def crit_eng(self):
+        pass
+
+    @property
+    def eff_energy(self):
+        pass
+
+    @property
+    def eng_shift(self):
+        pass
+
+    @property
+    def cond_eng(self):
 
 
 ################################################################################
