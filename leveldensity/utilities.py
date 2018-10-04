@@ -9,6 +9,9 @@ import numpy as np
 ################################################################################
 class Math:
 
+    """Numerical operations used in the level density model calculations and
+    data analysis"""
+
     def dfdx_1d(self, grid, func):
 
         assert np.shape(grid) == np.shape(func)
@@ -49,6 +52,10 @@ class Math:
 
 ################################################################################
 class Plotting:
+
+    """Plotting utilities to be used to compare different model calculations to
+    experimental level density data"""
+
     pass
 
 

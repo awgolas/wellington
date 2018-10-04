@@ -16,6 +16,9 @@ from library import Loader
 ################################################################################
 class GeneralParameters(Loader):
 
+    """ Defines the general level density parameters of the nuclei being observed
+    that are general to all level density models"""
+
     def __init__(self, input):
         load = Loader(input).parameters
         self.spin = load['spin']
@@ -58,6 +61,14 @@ class GeneralParameters(Loader):
 
 ################################################################################
 class BackShiftedFermiGasParameters(GeneralParameters):
+
+    """Level density model that utilizes Fermi-Gas Theory as defined in the RIPL
+    Reference Input Parameter Library.
+
+    Reference:
+    Capote, R., et al. “RIPL – Reference Input Parameter Library for Calculation
+        of Nuclear Reactions and Nuclear Data Evaluations.” Nuclear Data Sheets,
+        vol. 110, no. 12, 2009, pp. 3107–3214., doi:10.1016/j.nds.2009.10.004."""
 
 
     @property
@@ -188,6 +199,11 @@ class BackShiftedFermiGasParameters(GeneralParameters):
 ################################################################################
 class CompositeGilbertCameronParameters(GeneralParameters):
 
+    """Level density model that utilizes the Back Shifted Fermi-Gas Model for a
+    high-energy region and Constant-Temperature Model for a low-energy region.
+    Uses parameterized values defined in the RIPL Reference Input Parameter
+    Library. Same reference as BSFGM"""
+
     def __init__(self, input):
         GeneralParameters.__init__(self, input)
         bsfgm = BackShiftedFermiGasParameters(input)
@@ -289,52 +305,23 @@ class CompositeGilbertCameronParameters(GeneralParameters):
 
         rho = rho_e*rho_jpi
         return rho
-################################################################################
-class IgnatyukParameters:
-
-    def __init__(self):
-        self.atilda_a = 0.154
-        self.atilda_b = (6.3e-5, 2)
-        self.gamma = -0.054
-
-################################################################################
-class ArthurParameters:
-
-    def __init__(self):
-        self.atilda_a = 0.1375
-        self.atilda_b = (-8.36e-5, 2)
-        self.gamma = -0.054
-
-################################################################################
-class FunctionParameters:
-
-    def __init__(self, model):
-
-        if model == 'ignatyuk':
-            self._param = (0.154, (6.3e-5, 2), -0.054)
-        elif model == 'arthur':
-            self._param = (0.1375, (-8.36e-5, 2), -0.054)
-        elif model == 'iljinov':
-            self._param = (0.144, (9.8e-2, 2.0/3.0), -0.051)
-
-    @property
-    def atilde_a(self):
-        return self._param[0]
-
-    @property
-    def atilde_b(self):
-        return self._param[1]
-
-    @property
-    def gamma(self):
-        return self._param[2]
 
 ################################################################################
 class EmpireGilbertCameronParameters(GeneralParameters):
 
+    """Uses Constant Temperature and Fermi Gas Models to calculate level
+    densities but with the EMPIRE-derived parameter values rather than RIPL-
+    derived parameters. Parameters are calculated in
+    GilbertCameronFunctionParameters class.
+
+    Reference:
+    Herman, M., et al. EMPIRE-3.2 Malta Modular System for Nuclear Reaction
+        Calculations and Nuclear Data Evaluation User’s Manual. NNDC, Brookhaven
+        National Laboratory, Upton, USA, 5 Aug. 2013. """
+
     def __init__(self, input, model):
         GeneralParameters.__init__(self, input)
-        fp = FunctionParameters(model)
+        fp = GilbertCameronFunctionParameters(model)
         self.atilda_a = fp.atilde_a
         self.atilda_b = fp.atilda_b
         self.gamma = fp.gamma
@@ -356,7 +343,7 @@ class EmpireGilbertCameronParameters(GeneralParameters):
     def sigma_squared(self):
         A = self.mass_number
         u = self.eff_energy
-        a = self.a_ignatyuk
+        a = self.a
 
         sigma2 = 0.146*A**(0.6667)*(a*u)**0.5
         return sigma2
@@ -372,6 +359,35 @@ class EmpireGilbertCameronParameters(GeneralParameters):
 
         a_param = atilda*(1.0 + delta_w/u*f_u)
         return a_param
+
+
+################################################################################
+class GilbertCameronFunctionParameters:
+
+    """Calculates parameters to be used in Empire Gilbert Cameron level density
+    model. Uses Ignatyuk, Arthur, or Iljinov models as defined in EMPIRE manual.
+    Same reference as EGCP."""
+
+    def __init__(self, model):
+
+        if model == 'ignatyuk':
+            self._param = (0.154, (6.3e-5, 2), -0.054)
+        elif model == 'arthur':
+            self._param = (0.1375, (-8.36e-5, 2), -0.054)
+        elif model == 'iljinov':
+            self._param = (0.144, (9.8e-2, 2.0/3.0), -0.051)
+
+    @property
+    def atilde_a(self):
+        return self._param[0]
+
+    @property
+    def atilde_b(self):
+        return self._param[1]
+
+    @property
+    def gamma(self):
+        return self._param[2]
 
 ################################################################################
 class GeneralizedSuperfluidParameters(GeneralParameters):
