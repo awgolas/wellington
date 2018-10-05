@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="no">
+  <head>
+  <meta name="robots" content="noindex, nofollow" >
+
+  
+    <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1" />
+  
+   <meta http-equiv="X-UA-Compatible" content="IE=edge" /><!-- hindre emulering av IE7 -->
+   <meta charset="utf-8" >
+   <meta name="generator" content="Vortex" />
+
+   <title>404: Denne siden finnes ikke / 404: this page does not exist</title>
+
+    
+  
+  
+  
+  
+  
+  
+  
+
+  
+    
+      <link rel="shortcut icon" href="/vrtx/decorating/resources/dist/images/favicon.ico" >
+      <link rel="apple-touch-icon-precomposed" href="/vrtx/decorating/resources/dist/images/apple-touch-icon.png" >
+    
+   
+
+
+    
+  
+  
+
+  <script><!--
+    var uioPageInfo = {};
+
+    uioPageInfo.readRestricted = false;
+    uioPageInfo.cloudAllowed = true;
+    uioPageInfo.authenticated = "anonymous";
+  // -->
+  </script>
+
+
+    
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+  <script><!--
+    if (/iPad|Android 3/i.test(navigator.userAgent)) {
+      var tabletVp = document.getElementById('viewport');
+      tabletVp.setAttribute("content", "width=1020, user-scalable=yes");
+    }
+    if (/googlebot/i.test(navigator.userAgent)) {
+      document.addEventListener("DOMContentLoaded", function(event) {
+        var css = '@media only screen and (max-width: 16cm) and (orientation : portrait),' +
+                  '       only screen and (max-width: 19cm) and (orientation : landscape) { * { max-width: 420px; } }';
+        var head = document.getElementsByTagName('head')[0];
+        var s = document.createElement('style');
+        s.setAttribute('type', 'text/css');
+        if (s.styleSheet) {
+          s.styleSheet.cssText = css;
+        } else {
+          s.appendChild(document.createTextNode(css));
+        }
+        head.appendChild(s);
+      });
+    }
+  // -->
+  </script>
+
+  <link rel="stylesheet" media="all" href="/vrtx/decorating/resources/dist/src/css/style.css" >
+  
+    <link rel="stylesheet" media="only screen and (max-width: 16cm) and (orientation : portrait), only screen and (max-width: 19cm) and (orientation : landscape)" href="/vrtx/decorating/resources/dist/src/css/responsive.css" >
+  
+
+  <link rel="stylesheet" media="print" href="/vrtx/decorating/resources/dist/src/css/print.css" >
+
+  
+  
+
+  <script type='text/javascript' src='/vrtx/decorating/resources/dist/src/lib/jquery.min.js'></script>
+
+   
+     
+       <script src="//vrtx.uio.no/js/analytics/v2/uioGa.js"></script>
+     
+     <script src="//vrtx.uio.no/js/analytics/v2/www.mn.uio.no/customTracker.js"></script>
+   
+
+
+    
+  <meta charset="utf-8">
+  
+
+  </head>
+
+  <body class='www.mn.uio.no not-for-ansatte faculty  no'  id="error">
+  <!--stopindex-->
+
+    <div id="head-wrapper">
+        <div id="head">
+           
+            
+            <div class="uio-app-name" role="banner">
+                <a href="https://www.uio.no/" class="uio-seal">
+                  <span class="offscreen-screenreader">UiO</span>
+                </a>
+                <a href="https://www.uio.no/" class="uio-acronym georgia">UiO</a>
+                <a href="https://www.uio.no/" class="uio-host uio-host-resp">Universitetet i Oslo</a>
+                <a href="https://www.mn.uio.no/" class="uio-host">Det matematisk-naturvitenskapelige fakultet</a>
+            </div>
+            
+        </div>
+    </div>
+
+   <div id="main" class="uio-main">
+       <!--startindex-->
+       <div class="half-box-left">
+<h1>404: Denne siden er forsvunnet av naturlige årsaker</h1>
+
+<div class="white-box">
+<figure class="image-captioned image-right"><img alt="404 image" height="170" src="/vrtx/decorating/resources/images/404.jpg" width="150">
+<figcaption>Illustrasjonsfoto: Colourbox.com</figcaption>
+</figure>
+
+<p><strong>Siden du ser etter ble dessverre ikke funnet.</strong></p>
+
+<p>Innholdet kan ha blitt flyttet, eller du kan ha skrevet inn en nettadresse som ikke eksisterer.<br><br></p>
+
+<p><strong>Prøv å søke:</strong></p>
+
+<form action="/" class="searchform" method="get">
+<fieldset><label class="searchstringlabel" for="searchstring">Søk i Det matematisk-naturvitenskapelige fakultet</label> <input name="vrtx" type="hidden" value="search"> <input id="searchstring" name="query" type="text" value="" style="width: 200px"><button class="searchsubmit" type="submit"><span>Søk</span></button></fieldset>
+</form>
+&nbsp;
+
+<hr>
+<p><strong>Fortell oss gjerne hva du ikke fant:</strong></p>
+
+<ul>
+	<li><a href="mailto:nettredaktor@mn.uio.no">nettredaktor@mn.uio.no</a></li>
+</ul>
+
+<p><strong>Gå til forsiden til en av disse enhetene:</strong></p>
+
+<ul>
+	<li><a href="/">Det matematisk-naturvitenskapelige fakultet</a></li>
+	<li><a href="astro/">Institutt for teoretisk astrofysikk</a></li>
+	<li><a href="imbv/">Institutt for molekylær biovitenskap</a></li>
+	<li><a href="bio/">Biologisk institutt</a></li>
+	<li><a href="farmasi/">Farmasøytisk institutt</a></li>
+	<li><a href="fysikk/">Fysisk institutt</a></li>
+	<li><a href="geo/">Institutt for geofag</a></li>
+	<li><a href="ifi/">Institutt for informatikk</a></li>
+	<li><a href="kjemi/">Kjemisk institutt</a></li>
+	<li><a href="math/">Matematisk institutt</a></li>
+</ul>
+
+<p><strong>Andre enheter</strong></p>
+
+<ul>
+	<li><a href="smn/">Senter for materialvitenskap og nanoteknologi</a></li>
+	<li><a href="sfe/">Senter for entreprenørskap</a></li>
+</ul>
+</div>
+</div>
+
+<div class="half-box-right">
+<h1>404: This page disappeared of natural causes<br><br></h1>
+
+<div class="white-box">
+<figure class="image-captioned image-right"><img alt="404 image" height="170" src="/vrtx/decorating/resources/images/404.jpg" width="150">
+<figcaption>Illustrasjonsfoto: Colourbox.com</figcaption>
+</figure>
+
+<p><strong>Unfortunately the page you are looking for could not be found.</strong></p>
+
+<p>The content may have been moved, or you may have entered an incorrect URL.<br><br><br></p>
+
+<p><strong>Try searching:</strong></p>
+
+<form action="/english/" class="searchform" method="get">
+<fieldset><label class="searchstringlabel" for="searchstring2">Search Faculty of Mathematics and Natural Sciences</label> <input name="vrtx" type="hidden" value="search"> <input id="searchstring2" name="query" type="text" value="" style="width: 180px"><button class="searchsubmit" type="submit"><span>Search</span></button></fieldset>
+</form>
+&nbsp;
+
+<hr>
+<p><strong>Let us know what you were looking for:</strong></p>
+
+<ul>
+	<li><a href="mailto:nettredaktor@mn.uio.no">nettredaktor@mn.uio.no</a></li>
+</ul>
+
+<p><strong>Go to the home page of one of these departments:</strong></p>
+
+<ul>
+	<li><a href="/english">The Faculty of Mathematics and Natural Sciences</a></li>
+	<li><a href="/astro/english/">Institute of Theoretical Astrophysics</a></li>
+	<li><a href="/bio/english/">Department of Biology</a></li>
+	<li><a href="/farmasi/english/">School of Pharmacy</a></li>
+	<li><a href="/fysikk/english/">Department of Physics</a></li>
+	<li><a href="/geo/english/">Department of Geosciences</a></li>
+	<li><a href="/ifi/english/">Department of Informatics</a></li>
+	<li><a href="/kjemi/english/">Department of Chemistry</a></li>
+	<li><a href="/math/english/">Department of Mathematics</a></li>
+	<li><a href="/imbv/english/">Department of Molecular Biosciences</a></li>
+</ul>
+
+<p><strong>Other departments</strong></p>
+
+<ul>
+	<li><a href="/sfe/english/">Centre for Entrepreneurship</a></li>
+	<li><a href="/smn/english/">Centre for Materials Science and Nanotechnology</a></li>
+</ul>
+</div>
+</div>
+
+       <!--stopindex-->
+   </div>
+
+    <!-- Page footer start -->
+    <div id="footer-wrapper" class="grid-container">
+       <div id="footers" class="row">
+            <div class="col-3-5 vcard">
+              <div class="col-1-3 adr">
+<div class="content">
+  <h2 class="menu-label">Besøksadresse</h2>
+  <p><span class="building">Fakultetsadministrasjonen<br/>Fysikkbygningen øst <span class="map">(<a href="http://www.uio.no/om/finn-fram/omrader/blindern/bl24/">kart</a>)</span></span><br>
+  <span class="street-address">Sem Sælands vei 24</span><br>
+  <span class="postal-code">0371</span> 
+  <span class="locality">OSLO</span></p> 
+</div>
+</div>
+<div class="col-1-3 adr">
+<div class="content">
+  <h2 class="menu-label">Postadresse</h2>
+  <p><span class="post-office-box">Postboks 1032</span><br>
+  <span class="post-office-box">Blindern</span><br>
+  <span class="postal-code">N-0315</span>
+  <span class="locality">Oslo</span></p> 
+</div>
+</div>
+<div class="col-1-3">
+<div class="content">
+  <h2 class="menu-label">Telefon, faks, e-post</h2>
+  <p><span class="tel">22 85 52 00</span><br>
+  <span class="faks">22 85 63 39</span><br>
+  <a class="email" href="mailto:postmottak@mn.uio.no">postmottak@mn.uio.no</a></p>
+</div>
+</div>
+            </div>
+        </div>
+    </div>
+
+    
+  
+  
+  
+  
+  
+  
+  
+
+  <script src='/vrtx/decorating/resources/dist/src/js/uio2.js'></script>
+
+  
+  
+
+</body>
+</html>
