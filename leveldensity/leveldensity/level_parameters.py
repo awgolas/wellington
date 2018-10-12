@@ -20,15 +20,39 @@ class GeneralParameters(Loader):
     that are general to all level density models"""
 
     def __init__(self, input):
-        load = Loader(input).parameters
-        self.spin = load['spin']
-        self.pi = load['parity']
-        self.excitation_energy = load['excitation_energy']
-        self.num_protons = load['Z']
-        self.mass_number = load['A']
-        self.mass = load['mass']
-        self.separation_energy = load['Bn']
-        self.shell_correction = load['Shell Correction']
+        self.parameters = Loader(input).parameters
+
+    @property
+    def spin(self):
+        return self.parameters['spin']
+
+    @property
+    def pi(self):
+        return self.parameters['parity']
+
+    @property
+    def excitation_energy(self):
+        return self.parameters['excitation_energy']
+
+    @property
+    def num_protons(self):
+        return self.parameters['Z']
+
+    @property
+    def mass_number(self):
+        return self.parameters['A']
+
+    @property
+    def mass(self):
+        return self.parameters['mass']
+
+    @property
+    def separation_energy(self):
+        return self.parameters['Bn']
+
+    @property
+    def shell_correction(self):
+        return self.parameters['shell_correction']
 
     @property
     def num_neutrons(self):
@@ -62,13 +86,16 @@ class GeneralParameters(Loader):
 ################################################################################
 class BackShiftedFermiGasParameters(GeneralParameters):
 
-    """Level density model that utilizes Fermi-Gas Theory as defined in the RIPL
+    """
+    Level density model that utilizes Fermi-Gas Theory as defined in the RIPL
     Reference Input Parameter Library.
 
     Reference:
-    Capote, R., et al. “RIPL – Reference Input Parameter Library for Calculation
-        of Nuclear Reactions and Nuclear Data Evaluations.” Nuclear Data Sheets,
-        vol. 110, no. 12, 2009, pp. 3107–3214., doi:10.1016/j.nds.2009.10.004."""
+    Capote, R., et al. "RIPL - Reference Input Parameter Library for Calculation
+        of Nuclear Reactions and Nuclear Data Evaluations."
+        Nuclear Data Sheets, vol. 110, no. 12, 2009, pp. 3107 - 3214.,
+        doi:10.1016/j.nds.2009.10.004.
+    """
 
 
     @property
@@ -199,10 +226,12 @@ class BackShiftedFermiGasParameters(GeneralParameters):
 ################################################################################
 class CompositeGilbertCameronParameters(GeneralParameters):
 
-    """Level density model that utilizes the Back Shifted Fermi-Gas Model for a
+    """
+    Level density model that utilizes the Back Shifted Fermi-Gas Model for a
     high-energy region and Constant-Temperature Model for a low-energy region.
     Uses parameterized values defined in the RIPL Reference Input Parameter
-    Library. Same reference as BSFGM"""
+    Library. Same reference as BSFGM
+    """
 
     def __init__(self, input):
         GeneralParameters.__init__(self, input)
@@ -309,15 +338,17 @@ class CompositeGilbertCameronParameters(GeneralParameters):
 ################################################################################
 class EmpireGilbertCameronParameters(GeneralParameters):
 
-    """Uses Constant Temperature and Fermi Gas Models to calculate level
+    """
+    Uses Constant Temperature and Fermi Gas Models to calculate level
     densities but with the EMPIRE-derived parameter values rather than RIPL-
     derived parameters. Parameters are calculated in
     GilbertCameronFunctionParameters class.
 
     Reference:
     Herman, M., et al. EMPIRE-3.2 Malta Modular System for Nuclear Reaction
-        Calculations and Nuclear Data Evaluation User’s Manual. NNDC, Brookhaven
-        National Laboratory, Upton, USA, 5 Aug. 2013. """
+        Calculations and Nuclear Data Evaluation User's Manual. NNDC, Brookhaven
+        National Laboratory, Upton, USA, 5 Aug. 2013.
+    """
 
     def __init__(self, input, model):
         GeneralParameters.__init__(self, input)
@@ -364,9 +395,11 @@ class EmpireGilbertCameronParameters(GeneralParameters):
 ################################################################################
 class GilbertCameronFunctionParameters:
 
-    """Calculates parameters to be used in Empire Gilbert Cameron level density
+    """
+    Calculates parameters to be used in Empire Gilbert Cameron level density
     model. Uses Ignatyuk, Arthur, or Iljinov models as defined in EMPIRE manual.
-    Same reference as EGCP."""
+    Same reference as EGCP.
+    """
 
     def __init__(self, model):
 
@@ -389,57 +422,57 @@ class GilbertCameronFunctionParameters:
     def gamma(self):
         return self._param[2]
 
-################################################################################
-class GeneralizedSuperfluidParameters(GeneralParameters):
-
-    @property
-    def a_stndrd(self):
-
-    @property
-    def a_crit(self):
-
-    @property
-    def a_cum(self):
-
-    @property
-    def temp_crit(self):
-
-    @property
-    def temp_stndrd(self):
-
-    @property
-    def temp_cum(self):
-
-    @property
-    def det_crit(self):
-
-    @property
-    def det_stndrd(self):
-
-    @property
-    def
-
-
-######################################
-    @property
-    def crit_temp(self):
-        pass
-
-    @property
-    def crit_eng(self):
-        pass
-
-    @property
-    def eff_energy(self):
-        pass
-
-    @property
-    def eng_shift(self):
-        pass
-
-    @property
-    def cond_eng(self):
-
-
-################################################################################
-##################### End of level_parameters.py ###############################
+# ################################################################################
+# class GeneralizedSuperfluidParameters(GeneralParameters):
+#
+#     @property
+#     def a_stndrd(self):
+#
+#     @property
+#     def a_crit(self):
+#
+#     @property
+#     def a_cum(self):
+#
+#     @property
+#     def temp_crit(self):
+#
+#     @property
+#     def temp_stndrd(self):
+#
+#     @property
+#     def temp_cum(self):
+#
+#     @property
+#     def det_crit(self):
+#
+#     @property
+#     def det_stndrd(self):
+#
+#     @property
+#     def
+#
+#
+# ######################################
+#     @property
+#     def crit_temp(self):
+#         pass
+#
+#     @property
+#     def crit_eng(self):
+#         pass
+#
+#     @property
+#     def eff_energy(self):
+#         pass
+#
+#     @property
+#     def eng_shift(self):
+#         pass
+#
+#     @property
+#     def cond_eng(self):
+#
+#
+# ################################################################################
+# ##################### End of level_parameters.py ###############################

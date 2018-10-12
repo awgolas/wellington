@@ -34,6 +34,7 @@ class Math:
 
     def integral(self, grid, func):
         ## If spacings is not linear, then do integral_nonlinear#
+        pass
 
     def integral_linear(self, grid, func):
         dx = grid[1] - grid[0]

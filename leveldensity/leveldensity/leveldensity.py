@@ -21,52 +21,47 @@ import level_parameters
 
 def run():
 
-    zvv_file = """4.19   2.21655e+01
-4.53   3.59912e+01
-4.88   5.76440e+01
-5.23   7.65317e+01
-5.58   9.38064e+01
-5.93   1.13063e+02
-6.28   1.35094e+02
-6.63   1.61073e+02
-6.98   1.92428e+02
-7.33   2.30762e+02
-7.67   2.77853e+02
-8.02   3.35690e+02
-8.37   4.06536e+02
-8.72   4.92999e+02"""
-
-    lines = zvv_file.split('\n')
-    ldy = []
-    ldx = []
-    for line in lines:
-        sline = line.split('   ')
-        ld = float(sline[1])
-        ex = float(sline[0])
-        ldx.append(ex)
-        ldy.append(ld)
-
-
-
-    excitation_energy = np.linspace(1.85,10,num=50)
+    excitation_energy = np.linspace(3.85,10,num=50)
     parity = 1
     target = '52Cr'
-    spin = [1.0]#0.5, 1.0, 1.5, 2.0]
+    projectile = 'neutron'
+    spin = [0.0, 1.0, 1.5, 2.0]
+    fig, ax = plt.subplots(nrows=1, ncols=1)
     for j in spin:
         input = {'target' : target,
                  'spin'   : j,
                  'parity' : parity,
                  'excitation_energy' : excitation_energy}
 
-        #p = plt.scatter(ldx, ldy, label='EMPIRE EGSM rho(u)')
-        #p = plt.scatter(fg_energy, fgm, label='FG rho(u,$I_0$, $\pi_0$)')
-        #p = plt.scatter(gc_energy, gcm, label='GC rho(u,$I_0$, $\pi_0$)')
-        #p = plt.scatter(gc_energy, gcm_rhoe, label='GC rho(u)')
-    #plt.legend(loc=0)
-    #plt.grid()
-    #plt.xlabel('Effective Excitation Energy $MeV$')
-    #plt.ylabel('Level Density $MeV^{-1}$')
-    #p.figure.savefig('rhojpi.png')
+
+        fgm = level_parameters.BackShiftedFermiGasParameters(input)
+        fg_energy = fgm.eff_energy
+        fgm_d = 1/fgm.leveldensity
+
+        gcm = level_parameters.CompositeGilbertCameronParameters(input)
+        gc_energy = gcm.eff_energy
+        gcm_d = 1/gcm.leveldensity
+
+        ax.semilogy(fg_energy, fgm_d, label='FG 1/rho(u, $J$={}, $\pi_0$)'.format(j))
+        ax.semilogy(gc_energy, gcm_d, label='GC 1/rho(u, $J$={}, $\pi_0$)'.format(j))
+
+    save_dir = '/home/agolas/Documents/levden'
+
+    d0_array = 0.032*np.ones(np.shape(fgm_d))
+    d0_error = 0.0035*np.ones(np.shape(fgm_d))
+    eff_sep_energy = gcm.separation_energy - gcm.delta
+    bn = [eff_sep_energy]
+    bn_err =
+    d0 = 0.032
+
+    ax.errorbar(fg_energy, d0_array, yerr=d0_error, label='RIPL $D_0$')
+    ax.semilogy(bn_array, [0.0,0.35], label='Neutron Separation Energy')
+    ax.legend(loc=0)
+    ax.grid()
+    ax.set_xlabel('Effective Excitation Energy $MeV$')
+    ax.set_ylabel('Level Spacing $MeV$')
+    ax.set_title('Level Spacing of $^{52}Cr$')
+    fig.savefig(save_dir + 'mls.png')
 
 if __name__ == "__main__":
     run()

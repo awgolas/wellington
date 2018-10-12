@@ -8,7 +8,7 @@
 import os
 import sys
 import json
-
+import re
 ################################################################################
 class Loader:
     """This class is intended to load the input specifications from a python
@@ -19,26 +19,28 @@ class Loader:
         self.parameters = self.load(inputdict)
 
 
-
     def load(self, inputdict):
         input_params = self.input(inputdict)
         target = input_params['target']
         nuclear_data = self.library(target)
-        calc_parameters = {'target' : target,
-                           'spin'   : input_params['spin'],
-                           'parity' : input_params['parity'],
+
+        calc_parameters = {'target_label'      : target,
+                           'compound_label'    : nuclear_data['compound'],
+                           'parity'            : input_params['parity'],
+                           'spin'              : nuclear_data['spin'],
                            'excitation_energy' : input_params['excitation_energy'],
-                           'A'               : nuclear_data['A'],
-                           'Z' : nuclear_data['Z'],
-                           'mass' : nuclear_data['mass'],
-                           'Bn' : nuclear_data['Bn'],
-                           'Shell Correction' : nuclear_data['Shell Correction']}
+                           'A'                 : nuclear_data['A'],
+                           'Z'                 : nuclear_data['Z'],
+                           'mass'              : nuclear_data['mass'],
+                           'shell_correction'  : nuclear_data['delta_w'],
+                           'Bn'                : nuclear_data['Io'],
+                           'D0'                : nuclear_data['D0'],
+                           'D0_err'            : nuclear_data['D0_err']}
         return calc_parameters
 
     def input(self, inputdict):
         output = {}
         default = {'target' : None,
-                   'spin'   : 0,
                    'parity' : 0,
                    'temperature' : 8,
                    'excitation_energy' : 0}
@@ -53,12 +55,29 @@ class Loader:
 
         return output
 
-
     def library(self, target):
         with open('data.json', 'r') as f:
             data = json.load(f)
-        isotope_data = data[target]
-        return isotope_data
+
+        r = re.compile("([0-9]+)([a-zA-Z]+)")
+        m = r.match(target)
+        compound_z = str(int(m.group(1)) + 1)
+        compound_nucleus = compound_z + m.group(2)
+
+        target_data = data[target]
+        compound_data = data[compound_nucleus]
+
+        nuclear_data = {'target'   : target,
+                        'compound' : compound_nucleus,
+                        'A'        : compound_data['A'],
+                        'Z'        : compound_data['Z'],
+                        'mass'     : compound_data['mass'],
+                        'delta_w'  : compound_data['shell_correction'],
+                        'spin'     : target_data['Io'],
+                        'Bn'       : target_data['Bn'],
+                        'D0'       : target_data['D0'],
+                        'D0_err'   : target_data['dD0']}
+        return nuclear_data
 
 
 ################################################################################

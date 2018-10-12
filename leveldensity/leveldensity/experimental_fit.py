@@ -10,15 +10,26 @@ import os
 import numpy as np
 import sys
 from utilities import Math
-
+from library import Loader
 
 ################################################################################
-class ExperimentalLevelDensityLoad:
-    """ Pulls the levels for a nucleus from the RIPL or OSLO gamma emissions
-    libraries and sorts them into CLD(E, J) and CLD(E) data sets"""
-    def get_data_parameters(self):
+class PostLevelDensityLoad:
+    """
+    Pulls the levels for a nucleus from the RIPL or OSLO gamma emissions
+    libraries and sorts them into CLD(E, J) and CLD(E) data sets
+    """
 
-        #target nuclei
+    def __init__(self, parameters):
+        self.parameters = Loader(parameters).parameters
+
+    def get_data_parameters(self, source='RIPL'):
+
+        target = self.parameters['target_label']
+        parity = self.parameters['parity']
+        spin  = self.parameters['spin']
+
+
+
         #data source
         #spin, parity, energy-range
 
@@ -46,9 +57,9 @@ class ExperimentalLevelDensityLoad:
         #outputs array as [excitation energy, spin, parity, rho]
 
 ################################################################################
-class LevelDensityAnalyzer:
+class LevelDensityAnalyzer(PostLevelDensityLoad):
 
-    def __init__(self, levels, ex_energy):
+    def __init__(self, levels):
         self.levels = levels
         self.ex_energy = ex_energy
 
@@ -63,7 +74,7 @@ class LevelDensityAnalyzer:
 
     @property
     def spacings(self):
-        return np.diff(self.levels)
+        return 1/self.levels
 
     @property
     def num_spacings(self):
@@ -94,44 +105,22 @@ class LevelDensityAnalyzer:
             result.append(D/self.mean_spacing_at_E(E))
         return result
 
-    def mean_spacing_at_E(self, E):
-        try:
-            return 1.0/self.level_density.evaluate(E)
-        except TypeError as err:
-            raise TypeError(err.message + " for E="+str(E))
-
-    def getAverageSpacingLevelDensity(self):
-        """
-        Generate a level density corresponding to the average spacing
-
-        :return: An XYs1d containing the level density
-        """
-        myAxes = axes.axes(rank=2, labelsUnits={0: ( 'Level density', '1/'+self.energyUnit ), 1:( 'Excitation energy', self.energyUnit ) })
-        theData = []
-        for thisEnergy in self.levels:
-            if len(theData)>0 and abs(thisEnergy - theData[-1][0]) < 1e-6 * thisEnergy:
-                continue  # Deal with corner case where two levels are degenerate
-            else:
-                theData.append([thisEnergy, 1.0/self.mean_spacing])
-        return XYs.XYs1d(axes=myAxes, data=theData)
-
-
 ################################################################################
-class LevelDensityAdjustments:
-    """Inputs formatted array data that has been loaded from LevelDensityLoad and
+class LevelDensityAdjustments(LevelDensityAnalyzer):
+    """
+    Inputs formatted array data that has been loaded from LevelDensityLoad and
     adjusts the level densities to account for missing levels. This only accepts
     formatted RIPL data, as Oslo-method data should theoretically be completely
     defined.
 
     The getFractionMissing2SpacingCorrelation and get2get2SpacingCorrelation
-    functions were modified from the fudge-4.2.3 package, BNL.restools"""
-
-
+    functions were modified from the fudge-4.2.3 package, BNL.restools
+    """
 
     def getFractionMissing2SpacingCorrelation(self):
         """
-        See G.E. Mitchell, J.F. Shriner, "Missing Level Corrections using Neutron Spacings",
-        IAEA NDS Report INDC(NDS)-0561 (2009)
+        See G.E. Mitchell, J.F. Shriner, "Missing Level Corrections using
+        Neutron Spacings", IAEA NDS Report INDC(NDS)-0561 (2009)
         """
         rho=self.get2SpacingCorrelation()
         emean=numpy.array([-0.251, 0.428])
@@ -143,22 +132,7 @@ class LevelDensityAdjustments:
         return max(min(1.0,f),0.0), df
 
     def get2SpacingCorrelation(self, epsD=1e-9):
-        """
-        Get the spacing-spacing correlation function.
 
-            ..math::
-                D_i=E_{i+1}-E_i
-
-            ..math::
-
-                \rho(D_i,D_{i+1}) = \frac{\sum_i(D_i-\overline{D})(D_{i+1}-\overline{D})}{\left[\sum_i(D_i-\overline{D})^2\sum_j(D_{j+1}-\overline{D})^2\right]^{1/2}}
-
-        If you stare at this for a while, it is just the level-level level spacing correlation coefficient.
-
-        For GOE level spacings, should see :math:`\rho=-0.27`
-
-        :returns : value and variance in a tuple
-        """
         diff_spacings=[]
         for i in range(self.num_levels-1):
             aveE=0.5*(self.levels[i+1]+self.levels[i])
@@ -168,12 +142,13 @@ class LevelDensityAdjustments:
         correlation_matrix = numpy.corrcoef(numpy.array([[diff_spacings[i], diff_spacings[i+1]] for i in range(self.num_spacings-1)]).T)
         return correlation_matrix[0,1]
 
-    pass
-################################################################################
-class ParameterFits:
-    """Inputs adjusted or unadjusted level density arrays and fits level density
-    arrays to rho(E, J, Pi) functions. Determines level density parameters to
-    accomplish the function using the various LD models"""
-
-    pass
-################################################################################
+# ################################################################################
+# class ParameterFits:
+#     """
+#     Inputs adjusted or unadjusted level density arrays and fits level density
+#     arrays to rho(E, J, Pi) functions. Determines level density parameters to
+#     accomplish the function using the various LD models
+#     """
+#
+#     pass
+# ################################################################################
