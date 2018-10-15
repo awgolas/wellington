@@ -11,48 +11,15 @@ import sys
 import numpy as np
 import math
 from utilities import Math
-from library import Loader
+from library import Parameters
 
 ################################################################################
-class GeneralParameters(Loader):
+class GeneralParameters(Parameters):
 
-    """ Defines the general level density parameters of the nuclei being observed
-    that are general to all level density models"""
-
-    def __init__(self, input):
-        self.parameters = Loader(input).parameters
-
-    @property
-    def spin(self):
-        return self.parameters['spin']
-
-    @property
-    def pi(self):
-        return self.parameters['parity']
-
-    @property
-    def excitation_energy(self):
-        return self.parameters['excitation_energy']
-
-    @property
-    def num_protons(self):
-        return self.parameters['Z']
-
-    @property
-    def mass_number(self):
-        return self.parameters['A']
-
-    @property
-    def mass(self):
-        return self.parameters['mass']
-
-    @property
-    def separation_energy(self):
-        return self.parameters['Bn']
-
-    @property
-    def shell_correction(self):
-        return self.parameters['shell_correction']
+    """ 
+    Calculates the general level density parameters of the nuclei being observed
+    that are general to all level density models.
+    """
 
     @property
     def num_neutrons(self):
@@ -233,9 +200,9 @@ class CompositeGilbertCameronParameters(GeneralParameters):
     Library. Same reference as BSFGM
     """
 
-    def __init__(self, input):
-        GeneralParameters.__init__(self, input)
-        bsfgm = BackShiftedFermiGasParameters(input)
+    def __init__(self, inputval):
+        GeneralParameters.__init__(self, inputval)
+        bsfgm = BackShiftedFermiGasParameters(inputval)
         self.fgm_rho_energy = bsfgm.rho_energy
         self.rho_jpi = bsfgm.rho_jpi
 
@@ -350,14 +317,14 @@ class EmpireGilbertCameronParameters(GeneralParameters):
         National Laboratory, Upton, USA, 5 Aug. 2013.
     """
 
-    def __init__(self, input, model):
-        GeneralParameters.__init__(self, input)
+    def __init__(self, inputval, model):
+        GeneralParameters.__init__(self, inputval)
         fp = GilbertCameronFunctionParameters(model)
         self.atilda_a = fp.atilde_a
         self.atilda_b = fp.atilda_b
         self.gamma = fp.gamma
 
-        cgcp = CompositeGilbertCameronParameters(input)
+        cgcp = CompositeGilbertCameronParameters(inputval)
         self.matching_energy = cgcp.matching_energy
         self.eff_energy = cgcp.eff_energy
         self.temperature = cgcp.temperature

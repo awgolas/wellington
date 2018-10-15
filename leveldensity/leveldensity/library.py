@@ -79,8 +79,69 @@ class Loader:
                         'D0_err'   : target_data['dD0']}
         return nuclear_data
 
-
 ################################################################################
+class Parameters(Loader):
+
+    """
+    Instantiates the dictionary of problem parameters into class methods which
+    is faster and simpler than instantiating the Loader class each time a
+    parameter is required.
+    """
+
+    def __init__(self, inputdict):
+        Loader.__init__(self, inputdict)
+
+
+    @property
+    def target_label(self):
+        return self.parameters['target_label']
+
+    @property
+    def compound_label(self):
+        return self.parameters['compound_label']
+
+    @property
+    def pi(self):
+        return self.parameters['parity']
+
+    @property
+    def spin(self):
+        return self.parameters['spin']
+
+    @property
+    def excitation_energy(self):
+        return self.parameters['excitation_energy']
+
+    @property
+    def mass_number(self):
+        return self.parameters['A']
+
+    @property
+    def num_protons(self):
+        return self.parameters['Z']
+
+    @property
+    def mass(self):
+        return self.parameters['mass']
+
+    @property
+    def shell_correction(self):
+        return self.parameters['shell_correction']
+
+    @property
+    def separation_energy(self):
+        return self.parameters['Bn']
+
+    @property
+    def res_separation_spacing(self):
+        return self.parameters['D0']
+
+    @property
+    def res_separation_spacing_error(self):
+        return self.parameters['D0_err']
+
+
+################################################################################    
 class Output:
     pass
 ################################################################################

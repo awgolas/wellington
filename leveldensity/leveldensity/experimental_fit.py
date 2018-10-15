@@ -6,46 +6,118 @@
 ################################################################################
 
 import os
+import sys
+import re
 
 import numpy as np
-import sys
+
 from utilities import Math
-from library import Loader
+from library import Parameters
 
 ################################################################################
-class PostLevelDensityLoad:
+class PostLevelDensityLoad(Parameters):
     """
     Pulls the levels for a nucleus from the RIPL or OSLO gamma emissions
-    libraries and sorts them into CLD(E, J) and CLD(E) data sets
+    libraries and sorts them into CLD(E, J, pi) and CLD(E) data sets
     """
 
-    def __init__(self, parameters):
-        self.parameters = Loader(parameters).parameters
+    def __init__(self, inputdict):
+        Parameters.__init__(self, inputdict)
+        
 
-    def get_data_parameters(self, source='RIPL'):
+    @property
+    def RIPL_dir(self):
+        return os.path.join('~', 'empire', 'RIPL', 'levels')
 
-        target = self.parameters['target_label']
-        parity = self.parameters['parity']
-        spin  = self.parameters['spin']
+    def get_data(self, source='RIPL'):
 
+        nucleus = (self.compound_label, self.mass_number, self.num_protons)
+        parity = self.pi
+        spin  = self.spin
+
+        if source == 'RIPL':
+            data = self.ripl_data(nucleus, parity, spin)
+        elif source == 'Oslo':
+            data = self.oslo_data(nucleus)
 
 
         #data source
         #spin, parity, energy-range
 
-    def ripl_data(self):
+    def ripl_data(self, nucleus, parity, spin):
+            
+        leveldir = self.RIPL_dir
+        
+        label = nucleus[0]
+        r = re.compile("([0-9]+)([a-zA-Z]+)")
+        m = r.match(label)
+        end_z = str(int(m.group(1)) + 1)
+        end_label = end_z + m.group(2)
+        
+
+        mass_number = nucleus[1]
+        charge_number = nucleus[2]
+
+        file_name = 'z{:03d}.dat'.format(charge_number)
+        with open(leveldir + file_name, 'r') as f:
+            data_file = list(f)
+
+        target = False
+        for n, line in enumerate(data_file):
+            
+            if label in line:
+                target = True
+                init = n
+            
+            if target:
+                if end_label in line:
+                    end = n-1
+                    break
+
+        raw_nucleus_data = data_file[init:end]
+        formatted_nucleus_data = []
+
+        for line in raw_nucleus_data:
+            if line.startswith(' '*31): 
+                raw_nucleus_data.remove(line)
+                continue
+
+            clean_line = line.strip()
+            formatted_nucleus_data.append(clean_line)
+
+        jpi_col = []
+        cld_hist = {}
+        for line in formatted_nucleus_data:
+            sline = line.split()
+            
+            eff_energy = sline[1]
+            J = sline[2]
+            pi = sline[3]
+
+            Jpi = (J,pi)
+            if Jpi not in jpi_col:
+                jpi_col.append(Jpi)
+                cld_hist[Jpi] = []
+
+            cld_hist[Jpi].append(eff_energy)
+         
+        return cld_hist
+
+
+
         #Open file with z{charge number}.dat formatting
         #Parse for target nucleus symbol
         #Ignore gamma emissions data
         #output data array with [level index, energy, spin, parity]
         #Also get D0 from other different file source
 
-    def oslo_data(self):
+    def oslo_data(self, nucleus):
         #Do check to make sure nuclei is in the oslo folder
         #Open file with {nucleisymbol}.dat
         #That's basically it, they're preformatted
         #Also calculate CLD if it is requested
         #output data array as [level index, energy, level density]
+        return 'Error my guy'
 
     def ripl_sort(self, **kwargs):
 
@@ -55,55 +127,48 @@ class PostLevelDensityLoad:
         #calculates cumulative level density
         #calculates rho(E) from the derivative of the cumulative level density
         #outputs array as [excitation energy, spin, parity, rho]
+        pass
 
 ################################################################################
 class LevelDensityAnalyzer(PostLevelDensityLoad):
 
-    def __init__(self, levels):
-        self.levels = levels
-        self.ex_energy = ex_energy
+    def __init__(self, inputval, calc_levels):
+        PostLevelDensityLoad.__init__(self, inputval)
+        pldl = PostLevelDensityLoad(inputval)
+        self.exp_levels = pldl.exp_levels
+        self.calc_levels = calc_levels
 
     @property
-    def num_levels(self):
-        return len(self.levels)
+    def num_exp_levels(self):
+        return len(self.exp_levels)
 
     @property
     def cumulative_levels(self):
-        cld = Math().integral_linear(self.ex_energy, self.levels)
+        cld = Math().integral_linear(self.excitation_energy, self.calc_levels)
         return cld
 
     @property
-    def spacings(self):
-        return 1/self.levels
+    def exp_spacings(self):
+        return 1/self.exp_levels
 
     @property
-    def num_spacings(self):
+    def num_exp_spacings(self):
         return len(self.spacings)
 
     @property
-    def ave_spacing(self):
-        return numpy.average(self.spacings)
-
-    @property
     def mean_spacing(self):
-        return numpy.mean(self.spacings)
+        return numpy.mean(self.exp_spacings)
 
     @property
-    def stddev_spacing(self):
-        return numpy.std(self.spacings)
+    def stddev_exp_spacing(self):
+        return numpy.std(self.exp_spacings)
 
     @property
-    def var_spacing(self):
-        return numpy.var(self.spacings)
+    def var_exp_spacing(self):
+        return numpy.var(self.exp_spacings)
 
-    @property
-    def normalized_spacings(self):
-        result = []
-        for i in range(self.num_levels-1):
-            D = self.levels[i+1]-self.levels[i]
-            E = 0.5*(self.levels[i+1]+self.levels[i])
-            result.append(D/self.mean_spacing_at_E(E))
-        return result
+
+
 
 ################################################################################
 class LevelDensityAdjustments(LevelDensityAnalyzer):
@@ -135,11 +200,17 @@ class LevelDensityAdjustments(LevelDensityAnalyzer):
 
         diff_spacings=[]
         for i in range(self.num_levels-1):
+
             aveE=0.5*(self.levels[i+1]+self.levels[i])
+
             diff_spacings.append(self.spacings[i]-self.mean_spacing_at_E(aveE))
+
         if len([x for x in diff_spacings if x>epsD])<2:
+
             raise ValueError("Level-level spacing correlation undefined, is this a picket fence?")
+        
         correlation_matrix = numpy.corrcoef(numpy.array([[diff_spacings[i], diff_spacings[i+1]] for i in range(self.num_spacings-1)]).T)
+   
         return correlation_matrix[0,1]
 
 # ################################################################################
