@@ -33,7 +33,7 @@ class Loader:
                            'Z'                 : nuclear_data['Z'],
                            'mass'              : nuclear_data['mass'],
                            'shell_correction'  : nuclear_data['delta_w'],
-                           'Bn'                : nuclear_data['Io'],
+                           'Bn'                : nuclear_data['Bn'],
                            'D0'                : nuclear_data['D0'],
                            'D0_err'            : nuclear_data['D0_err']}
         return calc_parameters
@@ -76,7 +76,7 @@ class Loader:
                         'spin'     : target_data['Io'],
                         'Bn'       : target_data['Bn'],
                         'D0'       : target_data['D0'],
-                        'D0_err'   : target_data['dD0']}
+                        'D0_err'   : target_data['dD']}
         return nuclear_data
 
 ################################################################################

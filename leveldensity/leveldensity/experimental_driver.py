@@ -15,9 +15,30 @@ import json
 
 from utilities import Math
 import experimental_fit
+import level_parameters
 ################################################################################
 
 def run():
 
-    target = '52Cr'
-    
+    target = '51Cr'
+    inputdict = {'target' : target}
+
+    pldl = experimental_fit.PostLevelDensityLoad(inputdict)
+    Jpi = pldl.Jpi
+    #print(Jpi)
+    #rd = pldl.exp_cld[(1.5, -1.0)]
+    #print(rd)
+
+    calc_levels = 'literally nothing rn'
+
+    for jpi in Jpi:
+        lda = experimental_fit.LevelDensityAnalyzer(inputdict, jpi, calc_levels)
+
+        cep = lda.cld_equation_parameters
+        print(cep)
+
+################################################################################
+if __name__ == '__main__':
+    run()
+
+

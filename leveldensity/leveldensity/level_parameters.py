@@ -123,7 +123,7 @@ class BackShiftedFermiGasParameters(GeneralParameters):
         delta   = self.fgm_delta
 
         u   = ex_engy - delta
-        f_u = 1 - np.exp(-1.0*gamma*u)
+        f_u = 1.0 - np.exp(-1.0*gamma*u)
         a = atilda*(1.0 + delta_w/u*f_u)
         sf2 = 0.01389*A**(1.66667)/atilda*((a*u)**(0.5))
         return sf2
@@ -140,8 +140,9 @@ class BackShiftedFermiGasParameters(GeneralParameters):
         uindex = np.where(excitation_energy >= s_n)
         lindex = np.where(excitation_energy < s_n)
 
+        print(excitation_energy)
         s_squared[lindex] = sigma_d2 + excitation_energy[lindex]*(1.0/s_n)\
-            *(spin_cutoff_bn - sigma_d2)
+                *(spin_cutoff_bn - sigma_d2)
         s_squared[uindex] = self.sigma_f2(excitation_energy[uindex])
 
         return s_squared

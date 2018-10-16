@@ -59,15 +59,6 @@ class Math:
 
         return array[index]
 
-################################################################################
-class Plotting:
-
-    """Plotting utilities to be used to compare different model calculations to
-    experimental level density data"""
-
-    pass
-
-
 
 ################################################################################
 ####################### End of utilities.py ####################################
