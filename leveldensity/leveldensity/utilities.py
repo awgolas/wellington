@@ -4,8 +4,12 @@
 # Title: utilities.py                                                          #
 # Contains some math utilities                                                 #
 ################################################################################
-import numpy as np
+from __future__ import print_function
+import matplotlib
+matplotlib.use('agg')
 
+import numpy as np
+import matplotlib.pyplot as plt
 ################################################################################
 class Math:
 
@@ -61,4 +65,13 @@ class Math:
 
 
 ################################################################################
+class Plotting:
+
+    """
+    Utility to plot data from the different modules
+    """
+
+    def __init__(self, x, y,):
+        pass
+
 ####################### End of utilities.py ####################################

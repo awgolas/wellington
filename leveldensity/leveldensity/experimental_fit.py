@@ -10,11 +10,11 @@ import sys
 import re
 
 import numpy as np
-from scipy import stats
+from scipy.optimize import curve_fit
 
 from utilities import Math
 from library import Parameters
-
+from level_parameters import CompositeGilbertCameronParameters as CGCP
 ################################################################################
 class PostLevelDensityLoad(Parameters):
     """
@@ -87,21 +87,21 @@ class PostLevelDensityLoad(Parameters):
             clean_line = line.strip()
             formatted_nucleus_data.append(clean_line)
 
-        jpi_col = []
-        full_list = []
+        jpi_col = ['total',]
         cld_hist = {}
+        cld_hist['total'] = []
         for line in formatted_nucleus_data:
             sline = line.split()
-            
+
             index = sline[0]
             eff_energy = float(sline[1])
             J = float(sline[2])
             pi = float(sline[3])
 
             Jpi = (J,pi)
-            diag = (index, eff_energy, J, pi)
-            full_list.append(diag)
 
+
+            cld_hist['total'].append(eff_energy)
             if Jpi not in jpi_col:
                 jpi_col.append(Jpi)
                 cld_hist[Jpi] = []
@@ -139,45 +139,68 @@ class PostLevelDensityLoad(Parameters):
 ################################################################################
 class LevelDensityAnalyzer(PostLevelDensityLoad):
 
-    def __init__(self, inputdict, JPi, calc_levels):
+    def __init__(self, inputdict, JPi):
         PostLevelDensityLoad.__init__(self, inputdict)
         pldl = PostLevelDensityLoad(inputdict)
         self.exp_cld = pldl.exp_cld[JPi]
         self.JPi = JPi
-        self.calc_levels = calc_levels
 
     @property
     def cld_hist(self):
 
         cld_energy = np.asarray(self.exp_cld)
+
+        if cld_energy[0] == 0:
+            cld_energy = cld_energy[1:]
+
         num_levels = len(cld_energy)
         index = np.arange(1, num_levels+1, step=1)
 
-        histogram = np.array([index, cld_energy])
+        histogram = np.array([cld_energy, index])
         return histogram
 
     @property
-    def cld_equation_parameters(self):
+    def cld_two_equation(self):
 
+        cld_hist = self.cld_hist
+
+        e_m = 2.33 + 253.0/52.0 + 1.664100588
+
+        if np.min(cld_hist[0]) > e_m:
+            cld_estimate = self.cld_estimaton(cld_hist)
+        elif np.max(cld_hist[0]) < e_m:
+            cld_estimate = self.cld_estimation(cld_hist)
+        else:
+            cutoff = Math().nearest_value_index(cld_hist[0], e_m)
+
+            try:
+                cld_low_est = self.cld_estimation(cld_hist[:,:cutoff])
+            except:
+                cld_low_est = np.asarray([[],[]])
+            try:
+                cld_high_est = self.cld_estimation(cld_hist[:,cutoff:])
+            except:
+                cld_high_est = np.asarray([[],[]])
+
+            cld_estimate = np.hstack((cld_low_est, cld_high_est))
+
+        return cld_estimate
+
+    def cld_estimation(self, cld_data):
+
+        jpi = self.JPi
         cld_linear = self.cld_hist
-        j, pi = self.JPi
+        x_data, y_data = cld_data
 
+        popt, pcov = curve_fit(self.curvefit, x_data, y_data)
 
-        cld_log = np.log(cld_linear)
+        y_estimate = self.curvefit(x_data, *popt)
+        cld_estimate = np.asarray([x_data, y_estimate])
 
-        x,y = cld_log
-        cld_loglinreg = stats.linregress(x,y)
+        return cld_estimate
 
-        slope, yint, r = cld_loglinreg[0:3]
-        r_squared = r**2.0
-        A = np.exp(yint)
-
-        func_form = 'CLD(E, J={J}, Pi={Pi}) = {A}*e^({B}*E), r^2={r_squared}'
-        out = func_form.format(J=j, Pi=pi, A=A, B=slope, r_squared=r_squared)
-
-        return out
-
-
+    def curvefit(self, E, A, B, C):
+        return A*np.exp(B*E) + C
 
 
 ################################################################################

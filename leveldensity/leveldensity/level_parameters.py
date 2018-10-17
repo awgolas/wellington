@@ -241,7 +241,6 @@ class CompositeGilbertCameronParameters(GeneralParameters):
 
         A = self.mass_number
         delta = self.delta
-        excitation_energy = self.excitation_energy
 
         e_m = 2.33 + 253.0/A + delta
         return e_m
