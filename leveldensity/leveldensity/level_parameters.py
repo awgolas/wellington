@@ -28,22 +28,6 @@ class GeneralParameters(Parameters):
         return A - Z
 
     @property
-    def delta(self):
-        A = self.mass_number
-        Z = self.num_protons
-
-        if A%2 == 0:
-            if Z%2 == 0:
-                n = 2
-            else:
-                n = 0
-        else:
-            n = 1
-
-        d = 12/(A**(0.5))
-        return d
-
-    @property
     def global_spin_cutoff(self):
         A = self.mass_number
 
@@ -236,14 +220,6 @@ class CompositeGilbertCameronParameters(GeneralParameters):
         e0 = e_m - temp*(np.log(temp) + ln_rho[em_index])
         return e0
 
-    @property
-    def matching_energy(self):
-
-        A = self.mass_number
-        delta = self.delta
-
-        e_m = 2.33 + 253.0/A + delta
-        return e_m
 
     @property
     def temperature(self):

@@ -8,6 +8,7 @@
 import os
 import sys
 import re
+import math
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -137,13 +138,70 @@ class PostLevelDensityLoad(Parameters):
         pass
 
 ################################################################################
-class LevelDensityAnalyzer(PostLevelDensityLoad):
+class ParameterEstimates(PostLevelDensityLoad):
+    """
+    Inputs adjusted or unadjusted level density arrays and fits level density
+    arrays to rho(E, J, Pi) functions. Determines level density parameters to
+    accomplish the function using the various LD models
+    """
 
     def __init__(self, inputdict, JPi):
         PostLevelDensityLoad.__init__(self, inputdict)
         pldl = PostLevelDensityLoad(inputdict)
-        self.exp_cld = pldl.exp_cld[JPi]
         self.JPi = JPi
+
+    @property
+    def eff_energy_correction(self):
+        return 0.173015
+
+    @property
+    def spin_parity_rho(self):
+
+        sigma2 = self.global_spin_cutoff
+
+        if self.JPi =='total':
+            rho_jp = 1/math.sqrt(2*sigma2)
+
+        else:
+            j = self.JPi[0]
+            rho_jp = np.exp(-1.0*(j+0.5)**(2.0)/(2.0*sigma2))\
+            *(0.5)*(2.0*j+1)/((8.0*sigma2**(1.5))**(0.5))
+
+        return rho_jp
+
+    @property
+    def atilda(self):
+
+        A = self.mass_number
+        atilda = 0.154*A + 6.3e-5*A**2
+        return atilda
+
+    @property
+    def gamma(self):
+        gam0 = 0.41029
+        A = self.mass_number
+
+        g = gam0/A**0.333
+        return g
+
+    @property
+    def temperature(self):
+        A = self.mass_number
+        g = self.gamma
+        delta_W = self.shell_correction
+
+        temp = -0.22 + 9.4/math.sqrt(A*(1.0 + g*delta_W))
+        return temp
+
+
+#################################################################################
+
+class LevelDensityAnalyzer(ParameterEstimates):
+
+    def __init__(self, inputdict, JPi):
+        ParameterEstimates.__init__(self, inputdict, JPi)
+        pldl = PostLevelDensityLoad(inputdict)
+        self.exp_cld = pldl.exp_cld[JPi]
 
     @property
     def cld_hist(self):
@@ -160,54 +218,97 @@ class LevelDensityAnalyzer(PostLevelDensityLoad):
         return histogram
 
     @property
-    def cld_two_equation(self):
+    def rho_two_equation(self):
 
-        cld_hist = self.cld_hist
+        ex_energy, cld  = self.cld_hist
 
-        e_m = 2.33 + 253.0/52.0 + 1.664100588
+        rho_energy, rho = Math().dfdx_1d(ex_energy, cld)
 
-        if np.min(cld_hist[0]) > e_m:
-            cld_estimate = self.cld_estimaton(cld_hist)
-        elif np.max(cld_hist[0]) < e_m:
-            cld_estimate = self.cld_estimation(cld_hist)
+        e_m = self.matching_energy
+
+        fgf = self.fermi_gas_rho_form
+        ctf = self.constant_temp_rho_form
+
+        if np.min(rho_energy) > e_m:
+            rho_estimate = self.rho_estimation(fgf, rho_energy, rho)
+        elif np.max(rho_energy) < e_m:
+            rho_estimate = self.rho_estimation(ctf, rho_energy, rho)
         else:
-            cutoff = Math().nearest_value_index(cld_hist[0], e_m)
+            cutoff = Math().nearest_value_index(rho_energy, e_m)
 
+            low_energy = rho_energy[:cutoff]
+            high_energy = rho_energy[cutoff:]
+            low_rho = rho[:cutoff]
+            high_rho = rho[cutoff:]
             try:
-                cld_low_est = self.cld_estimation(cld_hist[:,:cutoff])
+                rho_low_est = self.rho_estimation(ctf, low_energy, low_rho)
             except:
-                cld_low_est = np.asarray([[],[]])
+                rho_low_est = np.asarray([[], []])
             try:
-                cld_high_est = self.cld_estimation(cld_hist[:,cutoff:])
+                rho_high_est = self.rho_estimation(fgf, high_energy, high_rho)
             except:
-                cld_high_est = np.asarray([[],[]])
+                rho_high_est = np.asarray([[], []])
 
-            cld_estimate = np.hstack((cld_low_est, cld_high_est))
+            rho_estimate = np.hstack((rho_low_est, rho_high_est))
 
-        return cld_estimate
+        return rho_estimate
 
-    def cld_estimation(self, cld_data):
+
+    def cld_smoother(self):
+        ex_energy , index = self.cld_hist
+
+        mc = Math(x_data=ex_energy, y_data=index)
+        cld_curve = mc.smoothing_2d(window=9, mode='exponential')
+
+        return cld_curve
+
+
+    def rho_estimation(self, curveform, x_data, y_data):
 
         jpi = self.JPi
-        cld_linear = self.cld_hist
-        x_data, y_data = cld_data
 
-        popt, pcov = curve_fit(self.curvefit, x_data, y_data)
-
-        y_estimate = self.curvefit(x_data, *popt)
-        cld_estimate = np.asarray([x_data, y_estimate])
-
-        return cld_estimate
-
-    def curvefit(self, E, A, B, C):
-        return A*np.exp(B*E) + C
+        rho_jpi = self.spin_parity_rho
 
 
-################################################################################
-class ParameterFits:
-     """
-     Inputs adjusted or unadjusted level density arrays and fits level density
-     arrays to rho(E, J, Pi) functions. Determines level density parameters to
-     accomplish the function using the various LD models
-     """
+        if curveform == self.constant_temp_rho_form:
+
+            temp = self.temperature
+            p0 = [rho_jpi, 1, temp, 1]
+
+        elif curveform == self.fermi_gas_rho_form:
+
+            atilda = self.temperature
+            gamma = self.gamma
+            correction = self.eff_energy_correction
+            p0 = [rho_jpi, atilda, gamma, correction, 1]
+            
+        popt, pcov = curve_fit(curveform, x_data, y_data, p0=p0,maxfev=10000000)
+
+        y_estimate = curveform(x_data, *popt)
+        rho_estimate = np.asarray([x_data, y_estimate])
+
+        return rho_estimate
+
+    def constant_temp_rho_form(self, E, spindep, cutoff, temp, const):
+
+        return spindep/temp*np.exp((E-cutoff)/temp) + const
+
+    def fermi_gas_rho_form(self, E, spindep, atilda, gamma, correction,  const):
+        # A --> spin dependence
+        # B --> atilda
+        # C --> gamma
+        # D --> pairing energy correction
+        # F --> fitting constant
+
+        delta_W = self.shell_correction
+        delta = self.delta
+
+        U = E - delta - correction
+
+        a_param = atilda * (1 + (1 - np.exp(gamma*U)*delta_W/U))
+
+        func = spindep/(12.0*a_param**0.25*U**1.25)\
+                *np.exp(2.0*np.sqrt(a_param*U)) + const
+        return func
+
 ################################################################################

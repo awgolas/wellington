@@ -140,8 +140,39 @@ class Parameters(Loader):
     def res_separation_spacing_error(self):
         return self.parameters['D0_err']
 
+    @property
+    def delta(self):
+        A = self.mass_number
+        Z = self.num_protons
 
-################################################################################    
+        if A%2 == 0:
+            if Z%2 == 0:
+                n = 2
+            else:
+                n = 0
+        else:
+            n = 1
+
+        d = 12/(A**(0.5))
+        return d
+
+    @property
+    def matching_energy(self):
+
+        A = self.mass_number
+        delta = self.delta
+
+        e_m = 2.33 + 253.0/A + delta
+        return e_m
+
+    @property
+    def global_spin_cutoff(self):
+        A = self.mass_number
+
+        sigma_d2 = (0.83*A**0.26)**2.0
+        return sigma_d2
+
+################################################################################
 class Output:
     pass
 ################################################################################
