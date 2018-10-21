@@ -93,13 +93,21 @@ class Math:
 
         return array[index]
 
+################################################################################
+class CurveFitting(Math):
+
+    def __init__(self, x_data, y_data, global_params):
+        Math.__init__(self, x_data, y_data)
+        self.global_params = global_params
+
+
     def smoothing_2d(self, window, mode='polynomial'):
 
         if self.x_data is None:
             raise TypeError('Independent variable data required')
         if self.y_data is None:
             raise TypeError('Dependent variable data required')
-
+        popt=None
         if mode == 'polynomial':
             curve = self.polynomial_fit
             params = np.zeros((len(self.y_data), 3))
@@ -117,16 +125,17 @@ class Math:
         y_out[:half_win] = self.y_data[:half_win]
         y_out[-half_win:] = self.y_data[-half_win:]
 
+        popt = [0.,0.,0.]
 
-        p0 = None
         for i in inner_bounds:
 
             x_win = self.x_data[i - half_win:i + half_win]
             y_win = self.y_data[i - half_win:i + half_win]
 
             try:
-                popt, pcov = curve_fit(curve, x_win, y_win, p0=p0, 
-bounds=(-25,25),maxfev=1000000000)
+                popt, pcov = curve_fit(curve, x_win, y_win,
+                        p0=p0,bounds=(-0.5,0.5), maxfev=1e9)
+
             except:
                 y_est = curve(self.x_data[i], *popt)
                 y_out[i] = y_est
@@ -134,21 +143,28 @@ bounds=(-25,25),maxfev=1000000000)
             p0 = popt
             y_est = curve(self.x_data[i], *popt)
             params[i] = popt
-            print('CLD: {}, Effective Energy {}, Estimate: {} '.format(i, self.x_data[i], y_est))
             y_out[i] = y_est
         
         return (np.asarray([self.x_data, y_out]) , params)
 
     def polynomial_fit(self, x, A, B, C):
 
+        A_global, B_global, C_global = self.global_params
+        A = A_global + A_est
+        B = B_global + B_est
+        C = C_global + C_est
+
         return A*x**2 + B*x + C
 
-    def quadratic_fit(self,x,A,B,C,D,E):
-        return A*x**4 + B*x**3 + C*x**2 + D*x + E
+    def exponential_fit(self, x, A_est, B_est, C_est):
 
-    def exponential_fit(self, x, A, B, C):
+        A_global, B_global, C_global = self.global_params
 
-        return A*np.exp(B*(x-1.85))
+        A = A_global + A_est
+        B = B_global + B_est
+        C = C_global + C_est
+
+        return A*np.exp(B*(x+0.2))
 
 
 ################################################################################
