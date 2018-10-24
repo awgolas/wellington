@@ -11,6 +11,7 @@ import re
 import math
 
 import numpy as np
+import scipy.integrate
 from scipy.optimize import curve_fit
 
 from utilities import Math
@@ -30,10 +31,21 @@ class PostLevelDensityLoad(Parameters):
 
     @property
     def RIPL_dir(self):
-        return os.path.join('/home/agolas', 'empire', 'RIPL', 'levels')
+        return os.path.join('/home/agolas', 'empire', 'RIPL')
+
+    @property
+    def levels_dir(self):
+        return os.path.join(self.RIPL_dir, 'levels')
+
+    @property
+    def HFB_dir(self):
+        return os.path.join(self.RIPL_dir, 'densities','total',
+                'level-densities-hfb/')
+
 
     def get_data(self, source='RIPL'):
-        source='RIPL'
+
+        source = 'RIPL'
         nucleus = (self.compound_label, self.mass_number, self.num_protons)
         parity = self.pi
         spin  = self.spin
@@ -42,6 +54,11 @@ class PostLevelDensityLoad(Parameters):
             data = self.ripl_data
         elif source == 'Oslo':
             data = self.oslo_data
+        elif source == 'HFB':
+            data = self.hfb_data
+        else:
+            raise KeyError("Level Density Data Source must be either 'RIPL',\
+                    'HFB', or 'Oslo'")
 
         return data
 
@@ -49,14 +66,13 @@ class PostLevelDensityLoad(Parameters):
     @property
     def ripl_data(self):
             
-        leveldir = self.RIPL_dir
+        leveldir = self.levels_dir
         
         label = self.compound_label
         r = re.compile("([0-9]+)([a-zA-Z]+)")
         m = r.match(label)
         end_z = str(int(m.group(1)) + 1)
         end_label = end_z + m.group(2)
-        
 
         mass_number = self.mass_number
         charge_number = self.num_protons
@@ -112,6 +128,143 @@ class PostLevelDensityLoad(Parameters):
         return cld_hist
 
     @property
+    def hfb_spin_vals(self):
+        j_vals = np.linspace(0,49, num=50)
+        if self.mass_number % 2 != 0:
+            j_vals = j_vals + 0.5
+        return j_vals
+
+
+    @property
+    def hfb_table(self):
+
+        Z_fill = str(self.num_protons).rjust(3)
+        A_fill = str(self.mass_number).rjust(3)
+        negParityToken = "Z={Z} A={A}: Negative-parity".format(Z=Z_fill, A=A_fill)
+        posParityToken = "Z={Z} A={A}: Positive-Parity".format(Z=Z_fill, A=A_fill)
+
+        file_name = 'z{:03d}.tab'.format(self.num_protons)
+        hfb_path = self.HFB_dir + file_name
+        f = open(hfb_path, 'r').read()
+
+        hfb_table = {}
+        hfb_table['U'] = []
+        hfb_table['T'] = []
+
+        hfb_table[('total', 1)] = []
+        hfb_table[('total', -1)] = []
+        
+        lines = f.split('\n')
+
+        j_vals = self.hfb_spin_vals
+
+        #Initialize the loop so that the lists can just be appended
+        for pi in [-1,1]:
+            for J in j_vals:
+                hfb_table[(J,pi)] = []
+
+        # Read in the data tables
+        while lines:
+            line = lines.pop(0)
+
+            # Positive parity entries come first
+            if posParityToken in line:
+                #theTable[1] = []
+                lines.pop(0)  # the "****" line
+                line = lines.pop(0)  # The column headings
+
+                while line.strip() != '':
+                    line = lines.pop(0)
+                    sline = line.split()
+
+                    if len(sline) == 0: continue
+                    if sline[0] == 'U[MeV]': continue
+
+                    hfb_table['U'].append(float(sline[0]))
+                    hfb_table['T'].append(float(sline[1]))
+                    hfb_table[('total', 1)].append(float(sline[2]))
+
+                    jcols = sline[5:]
+
+                    for i, j in enumerate(jcols):
+
+                        hfb_table[(j_vals[i],1)].append(float(j))
+
+
+            # Negative parity entries come second, we're done once we've read these
+            if negParityToken in line:
+
+                lines.pop(0)  # the "****" line
+                
+                while line.strip() != '':
+                    line = lines.pop(0)
+                    sline = line.split()
+
+                    if len(sline) == 0: continue
+                    if sline[0] == 'U[MeV]': continue
+
+                    hfb_table[('total', -1)].append(float(sline[2]))
+
+                    jcols = sline[5:] 
+                    for i, j in enumerate(jcols):
+                        hfb_table[(j_vals[i],-1)].append(float(j))
+                break
+
+        return hfb_table
+
+    @property
+    def hfb_temp(self):
+
+        mapped_temp = np.asarray([self.hfb_table['U'], self.hfb_table['T']])
+        return mapped_temp
+
+    @property
+    def hfb_eff_energy(self):
+        return self.hfb_table['U']
+
+    @property
+    def hfb_data(self):
+
+        hfb_table = self.hfb_table
+        j_vals = self.hfb_spin_vals
+        
+        hfb_cld = {}
+        hfb_rho = {}
+
+        interp_j = np.linspace(0.5,49,num=98)
+
+        for pi in [-1,1]:
+            for j in interp_j:
+
+                if (j,pi) in hfb_table.keys():
+
+                    hfb_rho[(j,pi)] = hfb_table[(j,pi)]
+                else:
+
+                    rho_l = hfb_table[(j-0.5,pi)]
+                    rho_r = hfb_table[(j+0.5,pi)]
+                    rho_ave = np.sum([rho_l, rho_r], axis=0)/2
+
+                    hfb_rho[(j,pi)] = rho_ave
+
+        x = hfb_table['U']
+        for pi in [-1,1]:
+            for j in j_vals:
+                y = hfb_rho[(j,pi)]
+
+                cld = scipy.integrate.cumtrapz(y, x, initial=0)
+                hfb_cld[(j,pi)] = cld
+
+
+        pneg =  hfb_table[('total',-1)]
+        ppos =  hfb_table[('total', 1)]
+        total_cld = np.sum([pneg, ppos], axis=0)
+        hfb_cld['total'] = total_cld
+
+        return hfb_cld
+
+
+    @property
     def Jpi(self):
 
         cld_hist = self.get_data()
@@ -126,16 +279,6 @@ class PostLevelDensityLoad(Parameters):
         #Also calculate CLD if it is requested
         #output data array as [level index, energy, level density]
         return 'Error my guy'
-
-    def ripl_sort(self, **kwargs):
-
-        #possibly accepted keywords:
-            #spin
-            #parity
-        #calculates cumulative level density
-        #calculates rho(E) from the derivative of the cumulative level density
-        #outputs array as [excitation energy, spin, parity, rho]
-        pass
 
 ################################################################################
 class ParameterEstimates(PostLevelDensityLoad):

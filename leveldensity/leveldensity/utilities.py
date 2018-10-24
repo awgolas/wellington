@@ -133,8 +133,7 @@ class CurveFitting(Math):
             y_win = self.y_data[i - half_win:i + half_win]
 
             try:
-                popt, pcov = curve_fit(curve, x_win, y_win,
-                        p0=p0,bounds=(-0.5,0.5), maxfev=1e9)
+                popt, pcov = curve_fit(curve, x_win, y_win, p0=p0,bounds=(-2,2), maxfev=1e9)
 
             except:
                 y_est = curve(self.x_data[i], *popt)
@@ -151,8 +150,8 @@ class CurveFitting(Math):
 
         A_global, B_global, C_global = self.global_params
         A = A_global + A_est
-        B = B_global + B_est
-        C = C_global + C_est
+        B = B_global # + B_est
+        C = C_global # + C_est
 
         return A*x**2 + B*x + C
 
@@ -161,10 +160,10 @@ class CurveFitting(Math):
         A_global, B_global, C_global = self.global_params
 
         A = A_global + A_est
-        B = B_global + B_est
-        C = C_global + C_est
+        B = B_global #+ B_est
+        C = C_global #+ C_est
 
-        return A*np.exp(B*(x+0.2))
+        return A*np.exp(B*(x-C))
 
 
 ################################################################################

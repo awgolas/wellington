@@ -10,6 +10,8 @@ matplotlib.use('agg')
 
 import os
 import sys
+
+sys.path.append('/home/agolas/fudge')
 import math
 
 import numpy as np
@@ -18,6 +20,7 @@ from scipy import integrate
 
 from utilities import CurveFitting
 import experimental_fit
+import BNL.restools.level_density as ldmodule
 import level_parameters
 ################################################################################
 
@@ -27,6 +30,7 @@ def run():
     inputdict = {'target' : target}
 
     pldl = experimental_fit.PostLevelDensityLoad(inputdict)
+    #Jpi = pldl.Jpi
     Jpi = ['total']
     #print(Jpi)
     #rd = pldl.exp_cld[(1.5, -1.0)]
@@ -82,15 +86,15 @@ def run():
         ax[0].step(x_data, y_data, label='actual {}'.format(key))
         ax[0].semilogy(x_est, y_est, label='Calculated w/ Energy-Dependent Parameters')
 
-        ax[1].plot(x_data[1:], spin_dep[1:], label='Spin-Dependence')
-        ax[1].plot(x_data[1:], temp[1:], label='Temperature')
-        #ax[1].plot(x_data, cutoff, label='Cutoff Energy')
+        ax[1].plot(x_data, spin_dep, label='Spin-Dependence')
+        ax[1].plot(x_data, temp, label='Temperature')
+        ax[1].plot(x_data, cutoff, label='Cutoff Energy')
 
         ax[0].set_xlabel('Excitation Energy (MeV)')
         ax[1].set_xlabel('Excitation Energy (MeV)')
 
         ax[0].set_ylabel('Cumulative Level Distribution')
-        ax[1].set_ylabel('Parameter Value')
+        ax[1].set_ylabel('Parameter Value (MeV)')
 
         ax[0].legend()
         ax[1].legend()
@@ -104,7 +108,166 @@ def run():
     fig.savefig('/home/agolas/Pictures/ctfspins.png')
     plt.close()
 
+def histogram():
+
+    target = '52Cr'
+    inputdict = {'target' : target}
+
+    pldl = experimental_fit.PostLevelDensityLoad(inputdict)
+    e_m = pldl.matching_energy
+
+    RIPLPATH="/home/agolas/empire/RIPL"
+    levelFile=RIPLPATH+"/levels/z024.dat"
+    HFBTabFile=RIPLPATH+"/densities/total/level-densities-hfb/z024.tab"
+    HBFCorFile=RIPLPATH+"/densities/total/level-densities-hfb/z024.cor"
+
+
+    cr52hfb=ldmodule.readHFBMLevelDensityTable(open(HFBTabFile).read(), 24, 52)
+    Js = cr52hfb.get_J_range()
+
+    HFB_hist = []
+    cum_cld = 0.
+    JXPI = []
+    hfb_dict = []
+
+
+
+    Jpi_array = pldl.Jpi
+
+    #Jpi_array = sorted(
+    
+    hist = []
+    jpi_bins = []
+
+    cum_cld = float(len(pldl.exp_cld['total']))
+    ripldict = {}
+    joopins = []
+
+    #tot_bins = ['unknown']
+    bins = np.linspace(-30,30, num=61)/2.0
+    #tot_bins.append(jpi_bins)
+    #fig, ax = plt.subplots(ncols=2, nrows=2)
+    for jpi in Jpi_array:
+        if jpi == 'total':
+            continue
+        if jpi[1] == 0:
+        #    tot.append('unknown')
+            continue
+        #if jpi[0] == -1:
+        #    tot.append('unknown')
+            continue
+
+        cld_val = float(len(pldl.exp_cld[jpi]))
+    
+        cld_frac = cld_val/cum_cld
+
+
+        #if jpi[1] == 0:
+        #    jxpi = 'unknown'
+        #elif jpi[0] == -1:
+        #    jxpi = 'unknown'
+        #else:
+        jxpi = jpi[0]*jpi[1]
+
+        ripldict[jxpi] = cld_frac
+
+        if jpi not in joopins:
+            joopins.append(jpi)
+
+        if jxpi not in jpi_bins:
+            jpi_bins.append(jxpi)
+
+    print(sorted(jpi_bins))
+    Joops = sorted(set(np.abs(jpi_bins)))
+    print(Joops)
+    cum_cld = 0
+    for Pi in [-1, 1]:
+        for J in Joops:
+            if Pi == -1 and J == 0: continue
+            try:
+                jxpi = J*Pi
+                cum_cld = cum_cld + cr52hfb.get_CLD(J=J, Pi=Pi).evaluate(17.0)
+            except KeyError:
+                continue
+
+    hfbdict = {}
+
+    for Pi in [-1, 1]:
+        for J in Joops:
+            if Pi == -1 and J == 0: continue
+            try: 
+                cld_val = cr52hfb.get_CLD(J=J, Pi=Pi).evaluate(17.0)
+                cld_int = int(cld_val/1000)
+                
+            except KeyError:
+                continue
+            jxpi = J*Pi
+            cld_frac = cld_val/cum_cld
+
+            hfbdict[jxpi] = cld_frac
+
+
+
+    title_form = """Normalized Distribution of 52Cr """# \n
+
+
+    plt.bar(hfbdict.keys(), hfbdict.values(), align='edge', label='HFB')
+    plt.bar(ripldict.keys(), ripldict.values(), align='center', label='RIPL')
+
+
+    plt.xlabel('$J*\pi$')
+    plt.ylabel('Frequency')
+    plt.title(title_form)
+    plt.legend()
+
+    plt.grid()
+    #plt.tight_layout()
+    plt.savefig('/home/agolas/Pictures/barplot.png')
+    plt.close()
+
+
+def knownvsunknown():
+
+    target = '51Cr'
+    inputdict = {'target' : target}
+
+    pldl = experimental_fit.PostLevelDensityLoad(inputdict)
+    Jpi = pldl.Jpi
+
+    jpitot = 'total'
+
+    lda = experimental_fit.LevelDensityAnalyzer(inputdict, jpitot)
+    xtot,ytot = lda.cld_hist
+
+    ex_eng = known_cld = []
+
+
+    for jpi in Jpi:
+        if jpi == 'total':
+            continue
+        if jpi[0] == -1:
+            continue
+        if jpi[1] == 0.:
+            continue
+        lda = experimental_fit.LevelDensityAnalyzer(inputdict, jpi)
+
+        xjpi, yjpi = lda.cld_hist
+        for val in xjpi:
+            ex_eng.append(val)
+        
+    num_lvls = len(ex_eng)
+    known_cld = range(0, num_lvls+1)
+    plt.step(xtot, ytot, label='All levels in RIPL')
+    plt.step(sorted(ex_eng), known_cld[1:], label='All levels with defined J & $\pi$')
+
+    plt.grid()
+    plt.legend()
+    plt.xlabel('Excitation Energy (MeV)')
+    plt.ylabel('CLD')
+    plt.savefig('/home/agolas/Pictures/known.png')
+    
+
 
 ################################################################################
 if __name__ == '__main__':
-    run()
+    histogram()
