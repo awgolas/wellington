@@ -24,9 +24,10 @@ class PostLevelDensityLoad(Parameters):
     libraries and sorts them into CLD(E, J, pi) and CLD(E) data sets
     """
 
-    def __init__(self, inputdict):
+    def __init__(self, inputdict, source):
         Parameters.__init__(self, inputdict)
-        self.exp_cld = self.get_data(self)
+        self.exp_cld = self.get_data(source)
+        self.source = source
         
 
     @property
@@ -45,7 +46,6 @@ class PostLevelDensityLoad(Parameters):
 
     def get_data(self, source='RIPL'):
 
-        source = 'RIPL'
         nucleus = (self.compound_label, self.mass_number, self.num_protons)
         parity = self.pi
         spin  = self.spin
@@ -140,8 +140,8 @@ class PostLevelDensityLoad(Parameters):
 
         Z_fill = str(self.num_protons).rjust(3)
         A_fill = str(self.mass_number).rjust(3)
-        negParityToken = "Z={Z} A={A}: Negative-parity".format(Z=Z_fill, A=A_fill)
-        posParityToken = "Z={Z} A={A}: Positive-Parity".format(Z=Z_fill, A=A_fill)
+        negParityToken = "Z={} A={}: Negative-parity".format(Z_fill, A_fill)
+        posParityToken = "Z={} A={}: Positive-Parity".format(Z_fill, A_fill)
 
         file_name = 'z{:03d}.tab'.format(self.num_protons)
         hfb_path = self.HFB_dir + file_name
@@ -231,10 +231,10 @@ class PostLevelDensityLoad(Parameters):
         hfb_cld = {}
         hfb_rho = {}
 
-        interp_j = np.linspace(0.5,49,num=98)
+        interp_j = np.linspace(0.0,49,num=99)
 
         for pi in [-1,1]:
-            for j in interp_j:
+            for j in j_vals:
 
                 if (j,pi) in hfb_table.keys():
 
@@ -267,7 +267,7 @@ class PostLevelDensityLoad(Parameters):
     @property
     def Jpi(self):
 
-        cld_hist = self.get_data()
+        cld_hist = self.get_data(source=self.source)
 
         j_pis = list(cld_hist.keys())
         return j_pis
@@ -281,17 +281,16 @@ class PostLevelDensityLoad(Parameters):
         return 'Error my guy'
 
 ################################################################################
-class ParameterEstimates(PostLevelDensityLoad):
+class LevelDensityModelEstimates(PostLevelDensityLoad):
     """
     Inputs adjusted or unadjusted level density arrays and fits level density
     arrays to rho(E, J, Pi) functions. Determines level density parameters to
-    accomplish the function using the various LD models
+    accomplish the function using the various LD models. 
     """
 
-    def __init__(self, inputdict, JPi):
-        PostLevelDensityLoad.__init__(self, inputdict)
-        pldl = PostLevelDensityLoad(inputdict)
-        self.JPi = JPi
+    def __init__(self, inputdict, source):
+        PostLevelDensityLoad.__init__(self, inputdict, source)
+        pldl = PostLevelDensityLoad(inputdict, source)
 
     @property
     def eff_energy_correction(self):
@@ -300,17 +299,24 @@ class ParameterEstimates(PostLevelDensityLoad):
     @property
     def spin_parity_rho(self):
 
+        jpi = self.Jpi
         sigma2 = self.global_spin_cutoff
 
-        if self.JPi =='total':
-            rho_jp = 1/math.sqrt(2*sigma2)
+        spin_parity = {}
 
-        else:
-            j = self.JPi[0]
-            rho_jp = np.exp(-1.0*(j+0.5)**(2.0)/(2.0*sigma2))\
-            *(0.5)*(2.0*j+1)/((8.0*sigma2**(1.5))**(0.5))
+        for j_pi in jpi:
 
-        return rho_jp
+            if j_pi =='total':
+                rho_jp = 1/math.sqrt(2*sigma2)
+
+            else:
+                j = j_pi[0]
+                rho_jp = np.exp(-1.0*(j+0.5)**(2.0)/(2.0*sigma2))\
+                *(0.5)*(2.0*j+1)/((8.0*sigma2**(1.5))**(0.5))
+
+            spin_parity[j_pi] = rho_jp
+
+        return spin_parity
 
     @property
     def atilda(self):
@@ -339,38 +345,60 @@ class ParameterEstimates(PostLevelDensityLoad):
 
 #################################################################################
 
-class LevelDensityAnalyzer(ParameterEstimates):
+class LevelDensityAnalyzer(LevelDensityModelEstimates):
 
-    def __init__(self, inputdict, JPi):
-        ParameterEstimates.__init__(self, inputdict, JPi)
-        pldl = PostLevelDensityLoad(inputdict)
-        self.exp_cld = pldl.exp_cld[JPi]
+    def __init__(self, inputdict, source):
+        LevelDensityModelEstimates.__init__(self, inputdict, source)
+        pldl = PostLevelDensityLoad(inputdict, source)
 
     @property
-    def cld_hist(self):
+    def cld_xy(self):
 
-        cld_energy = np.asarray(self.exp_cld)
+        cld_mapped_jpis = {}
 
-        if cld_energy[0] == 0:
-            cld_energy = cld_energy[1:]
+        for jpi in self.Jpi:
 
-        num_levels = len(cld_energy)
-        index = np.arange(1, num_levels+1, step=1)
+            exp_cld = self.exp_cld[jpi]
 
-        histogram = np.array([cld_energy, index])
-        return histogram
+            cld_energy = np.asarray(exp_cld)
+
+            if cld_energy[0] == 0:
+                cld_energy = cld_energy[1:]
+
+            if self.source == 'RIPL':
+                num_levels = len(cld_energy)
+                cld = np.arange(1, num_levels+1, step=1)
+                mapped = np.array([cld_energy, cld])
+
+            elif self.source =='HFB':
+                eff_energy = self.hfb_eff_energy
+                cld = self.exp_cld[jpi]
+                mapped = np.array([eff_energy, cld])
+
+            cld_mapped_jpis[jpi] = mapped
+
+
+        return cld_mapped_jpis
+
+    def cld_extract(self, ex_energy, j_pi='total'):
+
+        energy, cld = self.cld_xy[j_pi]
+        index = Math(array=energy, value=ex_energy).nearest_value_index()
+
+        extracted_cld = cld[index]
+
+        return extracted_cld
+
 
     @property
     def rho_two_equation(self):
 
         ex_energy, cld  = self.cld_hist
 
-        rho_energy, rho = Math().dfdx_1d(ex_energy, cld)
+        rho_energy, rho = Math(x_data=ex_energy, y_data=cld).dfdx_1d()
 
         e_m = self.matching_energy
 
-        fgf = self.fermi_gas_rho_form
-        ctf = self.constant_temp_rho_form
 
         if np.min(rho_energy) > e_m:
             rho_estimate = self.rho_estimation(fgf, rho_energy, rho)
@@ -431,27 +459,5 @@ class LevelDensityAnalyzer(ParameterEstimates):
         rho_estimate = np.asarray([x_data, y_estimate])
 
         return rho_estimate
-
-    def constant_temp_rho_form(self, E, spindep, cutoff, temp, const):
-
-        return spindep/temp*np.exp((E-cutoff)/temp) + const
-
-    def fermi_gas_rho_form(self, E, spindep, atilda, gamma, correction,  const):
-        # A --> spin dependence
-        # B --> atilda
-        # C --> gamma
-        # D --> pairing energy correction
-        # F --> fitting constant
-
-        delta_W = self.shell_correction
-        delta = self.delta
-
-        U = E - delta - correction
-
-        a_param = atilda * (1 + (1 - np.exp(gamma*U)*delta_W/U))
-
-        func = spindep/(12.0*a_param**0.25*U**1.25)\
-                *np.exp(2.0*np.sqrt(a_param*U)) + const
-        return func
 
 ################################################################################

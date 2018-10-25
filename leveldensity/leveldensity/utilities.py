@@ -80,18 +80,42 @@ class Math:
         integral = np.cumsum(trapezoid)
         return integral
 
-    def nearest_value_index(self):
+    def nearest_value_index(self, array=None, value=None):
 
-        array = np.asarray(self.array)
-        index = np.argmin(np.abs(array - self.value))
+        if array is None:
+            array=self.array
+        if value is None:
+            value=self.value
+
+        if len(array)==1:
+            index = 0
+        else:
+            array = np.asarray(array)
+            index = np.argmin(np.abs(array - value))
 
         return index
 
-    def nearest_value(self):
-        array = np.asarray(self.array)
+    def nearest_value(self, array=None, value=None):
+
+        if array is None:
+            array=self.array
+        if value is None:
+            value = self.value
+
+        array = np.asarray(array)
         index = np.argmin(np.abs(array - self.value))
 
         return array[index]
+
+    def normalize(self, array=None):
+
+        if array is None:
+            array = self.array
+        array = np.asarray(array)
+        sum_array = np.sum(array)
+        norm = array/sum_array
+        
+        return norm
 
 ################################################################################
 class CurveFitting(Math):

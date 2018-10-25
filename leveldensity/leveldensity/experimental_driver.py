@@ -18,9 +18,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import integrate
 
-from utilities import CurveFitting
+from utilities import Math, CurveFitting
 import experimental_fit
-import BNL.restools.level_density as ldmodule
 import level_parameters
 ################################################################################
 
@@ -110,119 +109,50 @@ def run():
 
 def histogram():
 
-    target = '52Cr'
+    target = '53Cr'
     inputdict = {'target' : target}
 
-    pldl = experimental_fit.PostLevelDensityLoad(inputdict)
-    e_m = pldl.matching_energy
+    ripl_lda = experimental_fit.LevelDensityAnalyzer(inputdict, source='RIPL')
+    hfb_lda = experimental_fit.LevelDensityAnalyzer(inputdict, source='HFB')
 
-    RIPLPATH="/home/agolas/empire/RIPL"
-    levelFile=RIPLPATH+"/levels/z024.dat"
-    HFBTabFile=RIPLPATH+"/densities/total/level-densities-hfb/z024.tab"
-    HBFCorFile=RIPLPATH+"/densities/total/level-densities-hfb/z024.cor"
+    err_jpis = ['total', (-1.0, 0.0), (7.0, 0.0), (2.0, 0.0), (9.0, 0.0),
+            (10.0, 0.0), (11.0, 0.0)]
+    jpis = [i for i in ripl_lda.Jpi if i not in err_jpis]
 
+    hfb_vals = []
+    ripl_vals = []
 
-    cr52hfb=ldmodule.readHFBMLevelDensityTable(open(HFBTabFile).read(), 24, 52)
-    Js = cr52hfb.get_J_range()
+    for jpi in jpis:
+        rval = ripl_lda.cld_extract(ex_energy=14.0, j_pi=jpi)
+        hval = hfb_lda.cld_extract(ex_energy=14.0, j_pi=jpi)
 
-    HFB_hist = []
-    cum_cld = 0.
-    JXPI = []
-    hfb_dict = []
+        ripl_vals.append(rval)
+        hfb_vals.append(hval)
 
+    hfb_norm = Math(array=hfb_vals).normalize()
+    ripl_norm = Math(array=ripl_vals).normalize()
 
+    jxpis = []
 
-    Jpi_array = pldl.Jpi
-
-    #Jpi_array = sorted(
-    
-    hist = []
-    jpi_bins = []
-
-    cum_cld = float(len(pldl.exp_cld['total']))
-    ripldict = {}
-    joopins = []
-
-    #tot_bins = ['unknown']
-    bins = np.linspace(-30,30, num=61)/2.0
-    #tot_bins.append(jpi_bins)
-    #fig, ax = plt.subplots(ncols=2, nrows=2)
-    for jpi in Jpi_array:
-        if jpi == 'total':
-            continue
-        if jpi[1] == 0:
-        #    tot.append('unknown')
-            continue
-        #if jpi[0] == -1:
-        #    tot.append('unknown')
-            continue
-
-        cld_val = float(len(pldl.exp_cld[jpi]))
-    
-        cld_frac = cld_val/cum_cld
+    for js in jpis:
+        jxpi = js[0]*js[1]
+        jxpis.append(jxpi)
 
 
-        #if jpi[1] == 0:
-        #    jxpi = 'unknown'
-        #elif jpi[0] == -1:
-        #    jxpi = 'unknown'
-        #else:
-        jxpi = jpi[0]*jpi[1]
-
-        ripldict[jxpi] = cld_frac
-
-        if jpi not in joopins:
-            joopins.append(jpi)
-
-        if jxpi not in jpi_bins:
-            jpi_bins.append(jxpi)
-
-    print(sorted(jpi_bins))
-    Joops = sorted(set(np.abs(jpi_bins)))
-    print(Joops)
-    cum_cld = 0
-    for Pi in [-1, 1]:
-        for J in Joops:
-            if Pi == -1 and J == 0: continue
-            try:
-                jxpi = J*Pi
-                cum_cld = cum_cld + cr52hfb.get_CLD(J=J, Pi=Pi).evaluate(17.0)
-            except KeyError:
-                continue
-
-    hfbdict = {}
-
-    for Pi in [-1, 1]:
-        for J in Joops:
-            if Pi == -1 and J == 0: continue
-            try: 
-                cld_val = cr52hfb.get_CLD(J=J, Pi=Pi).evaluate(17.0)
-                cld_int = int(cld_val/1000)
-                
-            except KeyError:
-                continue
-            jxpi = J*Pi
-            cld_frac = cld_val/cum_cld
-
-            hfbdict[jxpi] = cld_frac
+    title_form = """Normalized Distribution of $^{54}Cr$ at U=14.0 MeV """# \n
 
 
-
-    title_form = """Normalized Distribution of 52Cr """# \n
-
-
-    plt.bar(hfbdict.keys(), hfbdict.values(), align='edge', label='HFB')
-    plt.bar(ripldict.keys(), ripldict.values(), align='center', label='RIPL')
+    plt.bar(jxpis, hfb_norm, align='edge', width=-0.4, label='HFB')
+    plt.bar(jxpis, ripl_norm, align='edge', width=0.4, label='RIPL')
 
 
     plt.xlabel('$J*\pi$')
-    plt.ylabel('Frequency')
+    plt.ylabel('$CLD/NCUMUL$')
     plt.title(title_form)
     plt.legend()
 
     plt.grid()
-    #plt.tight_layout()
-    plt.savefig('/home/agolas/Pictures/barplot.png')
+    plt.savefig('/home/agolas/Pictures/cr54U14.png')
     plt.close()
 
 
