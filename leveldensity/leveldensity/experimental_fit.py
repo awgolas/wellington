@@ -28,7 +28,7 @@ class PostLevelDensityLoad(Parameters):
         Parameters.__init__(self, inputdict)
         self.exp_cld = self.get_data(source)
         self.source = source
-        
+
 
     @property
     def RIPL_dir(self):
@@ -65,9 +65,9 @@ class PostLevelDensityLoad(Parameters):
 
     @property
     def ripl_data(self):
-            
+
         leveldir = self.levels_dir
-        
+
         label = self.compound_label
         r = re.compile("([0-9]+)([a-zA-Z]+)")
         m = r.match(label)
@@ -83,11 +83,11 @@ class PostLevelDensityLoad(Parameters):
 
         target = False
         for n, line in enumerate(data_file):
-            
+
             if label in line:
                 target = True
                 init = n+1
-            
+
             if target:
                 if end_label in line:
                     end = n-1
@@ -97,7 +97,7 @@ class PostLevelDensityLoad(Parameters):
         formatted_nucleus_data = []
 
         for line in raw_nucleus_data:
-            if line.startswith(' '*31): 
+            if line.startswith(' '*31):
                 raw_nucleus_data.remove(line)
                 continue
 
@@ -153,7 +153,7 @@ class PostLevelDensityLoad(Parameters):
 
         hfb_table[('total', 1)] = []
         hfb_table[('total', -1)] = []
-        
+
         lines = f.split('\n')
 
         j_vals = self.hfb_spin_vals
@@ -195,7 +195,7 @@ class PostLevelDensityLoad(Parameters):
             if negParityToken in line:
 
                 lines.pop(0)  # the "****" line
-                
+
                 while line.strip() != '':
                     line = lines.pop(0)
                     sline = line.split()
@@ -205,7 +205,7 @@ class PostLevelDensityLoad(Parameters):
 
                     hfb_table[('total', -1)].append(float(sline[2]))
 
-                    jcols = sline[5:] 
+                    jcols = sline[5:]
                     for i, j in enumerate(jcols):
                         hfb_table[(j_vals[i],-1)].append(float(j))
                 break
@@ -227,7 +227,7 @@ class PostLevelDensityLoad(Parameters):
 
         hfb_table = self.hfb_table
         j_vals = self.hfb_spin_vals
-        
+
         hfb_cld = {}
         hfb_rho = {}
 
@@ -285,7 +285,7 @@ class LevelDensityModelEstimates(PostLevelDensityLoad):
     """
     Inputs adjusted or unadjusted level density arrays and fits level density
     arrays to rho(E, J, Pi) functions. Determines level density parameters to
-    accomplish the function using the various LD models. 
+    accomplish the function using the various LD models.
     """
 
     def __init__(self, inputdict, source):
@@ -382,10 +382,16 @@ class LevelDensityAnalyzer(LevelDensityModelEstimates):
 
     def cld_extract(self, ex_energy, j_pi='total'):
 
-        energy, cld = self.cld_xy[j_pi]
-        index = Math(array=energy, value=ex_energy).nearest_value_index()
+        jpi_cld = self.cld_xy[j_pi]
 
-        extracted_cld = cld[index]
+        if not jpi_cld.any():
+            extracted_cld = 1
+        else:
+
+            energy, cld = jpi_cld
+            index = Math(array=energy, value=ex_energy).nearest_value_index()
+
+            extracted_cld = cld[index]
 
         return extracted_cld
 
@@ -452,7 +458,7 @@ class LevelDensityAnalyzer(LevelDensityModelEstimates):
             gamma = self.gamma
             correction = self.eff_energy_correction
             p0 = [rho_jpi, atilda, gamma, correction, 1]
-            
+
         popt, pcov = curve_fit(curveform, x_data, y_data, p0=p0,maxfev=10000000)
 
         y_estimate = curveform(x_data, *popt)

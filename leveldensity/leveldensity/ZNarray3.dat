@@ -1,341 +1,425 @@
-################################################################################
-# Author: Alec Golas                                                           #
-# Date: October 15, 2018                                                       #
-# Title: experimental_driver.py                                                #
-# Drives the experimental fitting module                                       #
-################################################################################
-from __future__ import print_function
-import matplotlib
-matplotlib.use('agg')
-
-import os
-import sys
-import multiprocessing as mp
-import json
-
-sys.path.append('/home/agolas/fudge')
-import math
-
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy import integrate
-
-from utilities import Math, CurveFitting
-import experimental_fit
-import level_parameters
-################################################################################
-
-def run():
-
-    target = '51Cr'
-    inputdict = {'target' : target}
-
-    pldl = experimental_fit.PostLevelDensityLoad(inputdict)
-    #Jpi = pldl.Jpi
-    Jpi = ['total']
-    #print(Jpi)
-    #rd = pldl.exp_cld[(1.5, -1.0)]
-    #print(rd)
-
-
-    cld_data = {}
-    cld_estimate = {}
-    param_estimate = {}
-
-    for jpi in Jpi:
-        if jpi[1] == 0: continue
-        if jpi[0] == -1: continue
-
-        lda = experimental_fit.LevelDensityAnalyzer(inputdict, jpi)
-        if len(lda.exp_cld) < 10: continue
-
-        x,y = lda.cld_hist[:, :150]
-
-        pe = experimental_fit.ParameterEstimates(inputdict, jpi)
-        A = pe.spin_parity_rho
-        B = 1.0/pe.temperature
-        C = 1.80
-        globalparams = [A, B, C]
-        mc = CurveFitting(x_data=x, y_data=y, global_params=globalparams)
-        cld_array = mc.smoothing_2d(window=5, mode='exponential')
-        cld_est = cld_array[0]
-        param_array = cld_array[1]
-
-        A_est = param_array[:,0]
-        B_est = param_array[:,1]
-        C_est = param_array[:,2]
-
-        spin_dep_calc = A_est + globalparams[0]
-        temp_calc = 1/(B_est + globalparams[1])
-        cutoff_calc = C_est + globalparams[2]
-        #print(cutoff_calc)
-
-        label = jpi
-        cld_data[label] = lda.cld_hist
-        cld_estimate[label] = cld_est
-        param_estimate[label] = [spin_dep_calc, temp_calc, cutoff_calc]
-
-    fig, ax = plt.subplots(nrows=1, ncols=2,
-            figsize=(12,5))
-    for n, key in enumerate(cld_estimate.keys()):
-        x_data, y_data = cld_data[key][:, :150]
-        x_est = cld_est[0, :]
-        y_est = cld_est[1, :]
-
-        spin_dep, temp, cutoff = param_estimate[key]
-
-        ax[0].step(x_data, y_data, label='actual {}'.format(key))
-        ax[0].semilogy(x_est, y_est, label='Calculated w/ Energy-Dependent Parameters')
-
-        ax[1].plot(x_data, spin_dep, label='Spin-Dependence')
-        ax[1].plot(x_data, temp, label='Temperature')
-        ax[1].plot(x_data, cutoff, label='Cutoff Energy')
-
-        ax[0].set_xlabel('Excitation Energy (MeV)')
-        ax[1].set_xlabel('Excitation Energy (MeV)')
-
-        ax[0].set_ylabel('Cumulative Level Distribution')
-        ax[1].set_ylabel('Parameter Value (MeV)')
-
-        ax[0].legend()
-        ax[1].legend()
-
-        ax[0].grid()
-        ax[1].grid()
-    #    if key is not 'total':
-    #        jeepee = 'J' + str(key[0]) + 'pi' + str(key[1])
-    #    else:
-    #        jeepee = key
-    fig.savefig('/home/agolas/Pictures/ctfspins.png')
-    plt.close()
-
-def histogram(target):
-
-    inputdict = {'target' : target}
-
-    try:
-        ripl_lda = experimental_fit.LevelDensityAnalyzer(inputdict, source='RIPL')
-        hfb_lda = experimental_fit.LevelDensityAnalyzer(inputdict, source='HFB')
-    except:
-        return("Target {} does not exist".format(target))
-
-    A = ripl_lda.mass_number
-    Z = ripl_lda.num_protons
-    compound_label = ripl_lda.compound_label
-    N = A - Z
-
-    print("Attempting to determine RIPL/HFB deviation for nucleus {}".format(compound_label))
-
-    with open('level_param.json', 'r') as f:
-        data = json.load(f)
-
-    try:
-        umax = data[compound_label]["Umax"]
-    except:
-        umax = 14.0
-
-    if umax == 0.0:
-        umax = 14.0
-
-    print("Using UMax = {} for Nucleus {}".format(umax, compound_label))
-
-
-
-    jpis = []
-    for Js in ripl_lda.Jpi:
-        if Js[0] == -1: continue
-        if Js[1] == 0: continue
-        if Js == 'total': continue
-        jpis.append(Js)
-
-    hfb_vals = []
-    ripl_vals = []
-
-    try:
-        for jpi in jpis:
-            rval = ripl_lda.cld_extract(ex_energy=umax, j_pi=jpi)
-            hval = hfb_lda.cld_extract(ex_energy=umax, j_pi=jpi)
-
-            ripl_vals.append(rval)
-            hfb_vals.append(hval)
-
-        hfb_norm = Math(array=hfb_vals).normalize()
-        ripl_norm = Math(array=ripl_vals).normalize()
-
-        jxpis = []
-
-        error_per_jpi = np.abs(hfb_norm - ripl_norm)
-        maximum_error = np.max(error_per_jpi)
-        cumulative_error = np.sum(error_per_jpi)
-    except:
-        print("Error was encountered with {}".format(compound_label))
-        return(Z, N, A, np.nan, np.nan)
-    for js in jpis:
-        jxpi = js[0]*js[1]
-        jxpis.append(jxpi)
-
-
-    title_form = "Normalized Distribution of {}".format(compound_label)
-
-
-    plt.bar(jxpis, hfb_norm, align='edge', width=-0.4, label='HFB')
-    plt.bar(jxpis, ripl_norm, align='edge', width=0.4, label='RIPL')
-
-
-    plt.xlabel('$J*\pi$')
-    plt.ylabel('$CLD/NCUMUL$')
-    plt.title(title_form)
-    plt.legend()
-
-    plt.grid()
-    plt.savefig('/home/agolas/Pictures/{}U14.png'.format(compound_label))
-    plt.close()
-
-    print('RIPL/HFB Deviation for Compound {}: Max={}, Cumulative={}'.format(compound_label, maximum_error, cumulative_error))
-
-    return (Z, N, A, cumulative_error, maximum_error)
-
-
-def knownvsunknown():
-
-    target = '51Cr'
-    inputdict = {'target' : target}
-
-    pldl = experimental_fit.PostLevelDensityLoad(inputdict)
-    Jpi = pldl.Jpi
-
-    jpitot = 'total'
-
-    lda = experimental_fit.LevelDensityAnalyzer(inputdict, jpitot)
-    xtot,ytot = lda.cld_hist
-
-    ex_eng = known_cld = []
-
-
-    for jpi in Jpi:
-        if jpi == 'total':
-            continue
-        if jpi[0] == -1:
-            continue
-        if jpi[1] == 0.:
-            continue
-        lda = experimental_fit.LevelDensityAnalyzer(inputdict, jpi)
-
-        xjpi, yjpi = lda.cld_hist
-        for val in xjpi:
-            ex_eng.append(val)
-
-    num_lvls = len(ex_eng)
-    known_cld = range(0, num_lvls+1)
-    plt.step(xtot, ytot, label='All levels in RIPL')
-    plt.step(sorted(ex_eng), known_cld[1:], label='All levels with defined J & $\pi$')
-
-    plt.grid()
-    plt.legend()
-    plt.xlabel('Excitation Energy (MeV)')
-    plt.ylabel('CLD')
-    plt.savefig('/home/agolas/Pictures/known.png')
-
-
-
-################################################################################
-
-def main():
-
-    data = np.loadtxt('ZNarray3.dat')
-
-    ZN_grid = np.zeros((71,55))
-    ZN_grid[:] = np.nan
-
-    ZN_max_err = ZN_cum_err = ZN_grid
-
-    for line in data:
-        x = int(line[0])
-        y = int(line[1])
-        ZN_max_err[y,x] = line[3]
-        ZN_cum_err[y,x] = line[4]
-
-    plt.pcolormesh(ZN_max_err)
-    plt.title('Maximum Deviation between RIPL and HFB')
-    plt.ylabel('N')
-    plt.xlabel('Z')
-    plt.colorbar()
-    plt.grid()
-    plt.savefig('/home/agolas/Pictures/max_dev.png', dpi=900)
-    plt.close()
-
-    plt.pcolormesh(ZN_cum_err)
-    plt.title('Cumulative Deviation between RIPL and HFB')
-    plt.ylabel('N')
-    plt.xlabel('Z')
-    plt.colorbar()
-    plt.grid()
-    plt.savefig('/home/agolas/Pictures/cum_dev.png', dpi=900)
-    plt.close()
-
-
-
-
-if __name__ == '__main__':
-
-    Z_label = {
-               1: 'H',
-               2: 'He',
-               3: 'Li',
-               4: 'Be',
-               5: 'B',
-               6: 'C',
-               7: 'N',
-               8: 'O',
-               9: 'F',
-               10: 'Ne',
-               11: 'Na',
-               12: 'Mg',
-               13: 'Al',
-               14: 'Si',
-               15: 'P',
-               16: 'S',
-               17: 'Cl',
-               18: 'Ar',
-               19: 'K',
-               20: 'Ca',
-               21: 'Sc',
-               22: 'Ti',
-               23: 'V',
-               24: 'Cr',
-               25: 'Mn',
-               26: 'Fe',
-               27: 'Co',
-               28: 'Ni',
-               29: 'Cu',
-               30: 'Zn',
-               31: 'Ga',
-               32: 'Ge',
-               33: 'As',
-               34: 'Se',
-               35: 'Br',
-               36: 'Kr',
-               37: 'Rb',
-               38: 'Sr',
-               39: 'Y',
-               40: 'Zr',
-               41: 'Nb',
-               42: 'Mo',
-               43: 'Tc',
-               44: 'Ru',
-               45: 'Rh',
-               46: 'Pd',
-               47: 'Ag',
-               48: 'Cd',
-               49: 'In',
-               50: 'Sn',
-               51: 'Sb',
-               52: 'Te',
-               53: 'I',
-               54: 'Xe'
-                }
-    #
-    label = """27  20  47   nan   nan
+8  8   16   0.5066475026949335  0.08300395256916995
+8  9   17   0.46250239259330567  0.10526082862836084
+8  10  18   0.6096607938152993  0.2140252840723416
+8  11  19   0.5967581395566757  0.22517576944521228
+8  12  20   0.7016329340191906  0.2230880759288965
+8  13  21   0.1521766205138001  0.07608831025690005
+8  14  22   0.15612023368775924  0.07806011684387965
+8  15  23   nan   nan
+8  16  24   nan   nan
+8  17  25   nan   nan
+8  18  26   nan   nan
+8  19  27   nan   nan
+9  8   17   0.5942522964866785  0.1683647540920683
+9  9   18   0.46361796990954296  0.08071159564459754
+9  10  19   0.5165262733636508  0.0805348373264021
+9  11  20   0.7501343253564627  0.19757474055863244
+9  12  21   0.21327496818774905  0.058823529411764705
+9  13  22   0.6250046804208634  0.2180102594825326
+9  14  23   nan   nan
+9  15  24   nan   nan
+9  16  25   nan   nan
+9  17  26   nan   nan
+9  18  27   nan   nan
+9  19  28   nan   nan
+9  20  29   nan   nan
+9  21  30   nan   nan
+10  8  18   0.7174603174603174  0.2222222222222222
+10  9  19   0.5059040210397565  0.12124174845153396
+10  10  20  0.5967973808101197  0.08283050023884572
+10  11  21  0.6288372929818852  0.11105665527502094
+10  12  22  0.6230282751128  0.1201602279949918
+10  13  23  0.28819446778262414  0.1395445782042573
+10  14  24  0.5252223231182542  0.2222222222222222
+10  15  25  0.0  0.0
+10  16  26  0.299815295964466  0.149907647982233
+10  17  27  0.06997021330016095  0.03498510665008048
+10  18  28  0.4225954175207065  0.21129770876035325
+10  19  29  0.0  0.0
+10  20  30  0.579337159785225  0.2896685798926125
+10  21  31  nan  nan
+10  22  32  0.527456793624205  0.26372839681210253
+10  23  33  nan  nan
+11  8  19   nan  nan
+11  9  20   0.6381645200268832  0.1875207892095888
+11  10  21  0.4603665280270851  0.12136090981115322
+11  11  22  0.7778494701291245  0.31358497458522994
+11  12  23  0.2842366520570111  0.09472620550076741
+11  13  24  1.030667702228087  0.18316492111417065
+11  14  25  0.3260729946548154  0.10055717082324594
+11  15  26  0.009423347708930663  0.004711673854465359
+11  16  27  0.857142857142857  0.24749903775898735
+11  17  28  0.5893038698142001  0.2946519349071001
+11  18  29  0.10684078264300512  0.05342039132150256
+11  19  30  0.5253396729735431  0.2626698364867716
+11  20  31  0.08993777450989776  0.04496888725494891
+11  21  32  0.0  0.0
+11  22  33  0.08589959933134911  0.04294979966567458
+11  23  34  nan  nan
+11  24  35  nan  nan
+11  25  36  nan  nan
+12   9  21  0.792038224617 0.27946443253
+12  10  22  0.547363682286 0.215042708318
+12  11  23  nan  nan
+12  12  24  0.539892003937 0.146044700371
+12  13  25  0.724551516053 0.209289025303
+12  14  26  0.655986137409 0.145949562994
+12  15  27  0.637532861006 0.216736101137
+12  16  28  0.631901188305 0.160275831598
+12  17  29  0.0  0.0
+12  18  30  0.272136969247 0.136068484623
+12  19  31  0.370560104556 0.185280052278
+12  20  32  0.4522535753 0.22612678765
+12  21  33  0.0  0.0
+12  22  34  0.363195268904 0.181597634452
+12  23  35  nan  nan
+12  24  36  0.424354195411 0.212177097706
+12  25  37  nan  nan
+12  26  38  nan  nan
+12  27  39  nan  nan
+13  9  22  0.0927598042735  0.0463799021367
+13  10  23  0.135747955555  0.0616155304172
+13  11  24  1.00457957989  0.260401878334
+13  12  25  0.650996153992  0.282521281935
+13  13  26  0.44083932147  0.127797027256
+13  14  27  0.922842153164  0.262288131439
+13  15  28  0.872192018896  0.187608296214
+13  16  29  0.581101777693  0.192019958764
+13  17  30  1.15283837483  0.205937903437
+13  18  31  0.0  0.0
+13  19  32  0.188257818461  0.0941289092305
+13  20  33  0.0  0.0
+13  21  34  0.0  0.0
+13  22  35  0.0  0.0
+13  23  36  nan  nan
+13  24  37  nan  nan
+13  25  38  nan  nan
+13  26  39  nan  nan
+13  27  40  nan  nan
+13  28  41  nan  nan
+13  29  42  nan  nan
+14  9  23  nan  nan
+14  10  24  0.325172940931  0.162586470465
+14  11  25  0.0  0.0
+14  12  26  0.508391337789  0.254195668894
+14  13  27  nan  nan
+14  14  28  0.479515302871  0.151888213178
+14  15  29  0.702198747773  0.165188446918
+14  16  30  0.595083395235  0.110372939318
+14  17  31  0.418738944963  0.113367947737
+14  18  32  0.429920315894  0.191753977253
+14  19  33  0.225537725991  0.112768862995
+14  20  34  0.320654013303  0.160327006651
+14  21  35  0.111360917185  0.0556804585923
+14  22  36  0.455901405759  0.22795070288
+14  23  37  0.0  0.0
+14  24  38  0.451273545686  0.225636772843
+14  25  39  nan  nan
+14  26  40  0.427283240161  0.213641620081
+14  27  41  nan  nan
+14  28  42  0.418968346499  0.209484173249
+14  29  43  nan  nan
+14  30  44  nan  nan
+15  9  24  nan  nan
+15  10  25  nan  nan
+15  11  26  nan  nan
+15  12  27  0.249996353267  0.124998176633
+15  13  28  0.853586192051  0.248334853675
+15  14  29  0.731547086403  0.251190313208
+15  15  30  0.718992620759  0.155421588921
+15  16  31  0.825514903772  0.19131540855
+15  17  32  0.68259544133  0.178604905649
+15  18  33  nan  nan
+15  19  34  0.933223983962  0.234949274042
+15  20  35  0.249174138745  0.0887210948561
+15  21  36  0.604834822036  0.302417411018
+15  22  37  0.27254641396  0.0915026527109
+15  23  38  nan  nan
+15  24  39  0.285452082192  0.142726041096
+15  25  40  nan  nan
+15  26  41  0.0456060649033  0.0228030324517
+15  27  42  nan  nan
+15  28  43  0.284778334614  0.142389167307
+15  29  44  nan  nan
+15  30  45  nan  nan
+15  31  46  nan  nan
+16  10  26  nan  nan
+16  11  27  nan  nan
+16  12  28  0.366149991246  0.183074995623
+16  13  29  0.309977585086  0.154988792543
+16  14  30  1.16248834278  0.202375382243
+16  15  31  0.468745603637  0.101286564594
+16  16  32  0.869632369934  0.155714629379
+16  17  33  nan  nan
+16  18  34  0.675787068021  0.110152130073
+16  19  35  nan  nan
+16  20  36  0.568748155256  0.123187171855
+16  21  37  0.678885210235  0.185759146978
+16  22  38  0.404834438056  0.178194912759
+16  23  39  0.0  0.0
+16  24  40  0.461768197719  0.230884098859
+16  25  41  0.0  0.0
+16  26  42  0.450900022789  0.225450011394
+16  27  43  0.0  0.0
+16  28  44  0.116811685216  0.0584058426081
+16  29  45  nan  nan
+16  30  46  0.46759939148  0.23379969574
+16  31  47  nan  nan
+16  32  48  nan  nan
+17  11  28  nan  nan
+17  12  29  nan  nan
+17  13  30  nan  nan
+17  14  31  0.506184026186  0.154643291647
+17  15  32  0.85567417482  0.163206509873
+17  16  33  0.624192985613  0.141705085802
+17  17  34  0.911878640434  0.141149014163
+17  18  35  0.54973241716  0.101743656498
+17  19  36  0.784542037535  0.183259244507
+17  20  37  nan  nan
+17  21  38  0.583654685304  0.17309789065
+17  22  39  0.806132348404  0.170738213622
+17  23  40  0.33783928557  0.0902726045808
+17  24  41  0.281789164479  0.14089458224
+17  25  42  0.388968114494  0.194484057247
+17  26  43  0.0  0.0
+17  27  44  0.0477863731978  0.0238931865989
+17  28  45  0.0  0.0
+17  29  46  nan  nan
+17  30  47  nan  nan
+17  31  48  nan  nan
+17  32  49  nan  nan
+17  33  50  nan  nan
+18  12  30  nan  nan
+18  13  31  nan  nan
+18  14  32  0.346805606045  0.173402803023
+18  15  33  0.451703657868  0.225851828934
+18  16  34  0.0818296192889  0.0409148096445
+18  17  35  0.55014584007  0.113362053411
+18  18  36  0.808076793123  0.117003250218
+18  19  37  0.402410971241  0.119340139783
+18  20  38  0.777503175654  0.191562645834
+18  21  39  0.973749424664  0.198510042026
+18  22  40  0.565781453235  0.13187125601
+18  23  41  0.66726929225  0.168287439564
+18  24  42  0.430301864405  0.132653238925
+18  25  43  0.141295907604  0.070647953802
+18  26  44  0.355758185746  0.139731427022
+18  27  45  nan  nan
+18  28  46  0.485831407001  0.242915703501
+18  29  47  0.0  0.0
+18  30  48  0.364228996739  0.182114498369
+18  31  49  nan  nan
+18  32  50  nan  nan
+18  33  51  nan  nan
+18  34  52  nan  nan
+19  13  32  nan  nan
+19  14  33  nan  nan
+19  15  34  nan  nan
+19  16  35  0.0  0.0
+19  17  36  0.274282308257  0.125375999778
+19  18  37  0.16562366054  0.0682186981376
+19  19  38  0.729560032368  0.122836364884
+19  20  39  nan  nan
+19  21  40  0.431369721866  0.10115982754
+19  22  41  nan  nan
+19  23  42  1.04839049054  0.200665833503
+19  24  43  nan  nan
+19  25  44  0.655165519538  0.327582759769
+19  26  45  0.450031186801  0.141114509788
+19  27  46  0.307676920479  0.153838460239
+19  28  47  0.68710069151  0.124868749997
+19  29  48  0.0  0.0
+19  30  49  0.388123943149  0.194061971574
+19  31  50  0.0  0.0
+19  32  51  nan  nan
+19  33  52  nan  nan
+19  34  53  nan  nan
+19  35  54  nan  nan
+19  36  55  nan  nan
+20  14  34  nan  nan
+20  15  35  nan  nan
+20  16  36  0.518754423213  0.259377211607
+20  17  37  0.273985634208  0.136992817104
+20  18  38  0.349430788195  0.174715394098
+20  19  39  nan  nan
+20  20  40  1.29340540541  0.246918918919
+20  21  41  0.516030710347  0.108393945731
+20  22  42  0.768315737711  0.21232632372
+20  23  43  nan  nan
+20  24  44  0.542944106829  0.0899969951509
+20  25  45  0.619687645985  0.142752794871
+20  26  46  0.607218683652  0.0822171225178
+20  27  47  0.44998417093  0.0940903179832
+20  28  48  0.465676201055  0.0784885111671
+20  29  49  0.326372841709  0.163186420855
+20  30  50  1.1109248252  0.313058149059
+20  31  51  0.0  0.0
+20  32  52  0.59060273445  0.295301367225
+20  33  53  0.0  0.0
+20  34  54  nan  nan
+20  35  55  nan  nan
+20  36  56  nan  nan
+20  37  57  nan  nan
+21  15  36  nan  nan
+21  16  37  nan  nan
+21  17  38  nan  nan
+21  18  39  0.130604314546  0.0653021572731
+21  19  40  0.742173562755  0.249920872418
+21  20  41  0.64266636647  0.145425896985
+21  21  42  0.993132949577  0.154090868771
+21  22  43  1.03703703704  0.167821277411
+21  23  44  1.4358974359  0.197803929044
+21  24  45  1.2776082596  0.174762660991
+21  25  46  0.985231330183  0.125
+21  26  47  1.29411764706  0.395376041428
+21  27  48  0.870988525239  0.172890493849
+21  28  49  0.769355531898  0.131316944528
+21  29  50  0.536863053226  0.223908211165
+21  30  51  0.818110409858  0.222180464769
+21  31  52  0.36633868536  0.18316934268
+21  32  53  nan  nan
+21  33  54  0.0299415571095  0.0149707785548
+21  34  55  nan  nan
+21  35  56  0.341082860481  0.17054143024
+21  36  57  nan  nan
+21  37  58  nan  nan
+21  38  59  nan  nan
+21  39  60  nan  nan
+22  16  38  nan  nan
+22  17  39  nan  nan
+22  18  40  nan  nan
+22  19  41  nan  nan
+22  20  42  0.290436835891  0.142857142857
+22  21  43  0.291223747962  0.110649708989
+22  22  44  1.16585178888  0.228854757558
+22  23  45  nan  nan
+22  24  46  0.631141832364  0.10264931236
+22  25  47  0.602075674794  0.131827026211
+22  26  48  0.535895281441  0.106373183595
+22  27  49  0.847617625836  0.206751034047
+22  28  50  0.670679933318  0.113299351248
+22  29  51  0.775183185221  0.188142883897
+22  30  52  0.51619714811  0.102179147488
+22  31  53  0.131380877933  0.0397961888133
+22  32  54  0.487761144731  0.236952723964
+22  33  55  0.2930555768  0.1465277884
+22  34  56  0.511467493837  0.255733746918
+22  35  57  nan  nan
+22  36  58  0.51475037382  0.25737518691
+22  37  59  nan  nan
+22  38  60  nan  nan
+22  39  61  nan  nan
+22  40  62  nan  nan
+23  17  40  nan  nan
+23  18  41  nan  nan
+23  19  42  nan  nan
+23  20  43  0.0  0.0
+23  21  44  0.0  0.0
+23  22  45  1.18195906538  0.306592294518
+23  23  46  1.27227348049  0.292492652223
+23  24  47  0.790598557  0.132549875088
+23  25  48  0.828396199664  0.123096567496
+23  26  49  0.751378946468  0.158385593935
+23  27  50  0.586235422982  0.125638627936
+23  28  51  0.741552370942  0.142199049743
+23  29  52  0.5982608525  0.152227411885
+23  30  53  0.866171815304  0.193389679854
+23  31  54  1.03848547416  0.279832494838
+23  32  55  0.0  0.0
+23  33  56  nan  nan
+23  34  57  0.181201895918  0.0906009479591
+23  35  58  0.0  0.0
+23  36  59  nan  nan
+23  37  60  0.0  0.0
+23  38  61  nan  nan
+23  39  62  nan  nan
+23  40  63  nan  nan
+23  41  64  nan  nan
+23  42  65  nan  nan
+24  18  42  nan  nan
+24  19  43  nan  nan
+24  20  44  nan  nan
+24  21  45  0.13578964984  0.0678948249198
+24  22  46  1.18789562659  0.460467218599
+24  23  47  1.33914541515  0.262405053379
+24  24  48  1.41579940334  0.397061077769
+24  25  49  0.790143837949  0.0926537869282
+24  26  50  0.921692861893  0.13203449182
+24  27  51  0.604595447141  0.102699661923
+24  28  52  0.761738798093  0.140173382351
+24  29  53  0.895454989911  0.136030294141
+24  30  54  0.790899048838  0.128622429849
+24  31  55  1.02482054552  0.167184961699
+24  32  56  1.35821774124  0.422612636707
+24  33  57  0.341031297394  0.161760650765
+24  34  58  0.420655504375  0.210327752188
+24  35  59  0.319736834979  0.15986841749
+24  36  60  0.517562087751  0.258781043875
+24  37  61  0.0  0.0
+24  38  62  0.526662962975  0.263331481488
+24  39  63  nan  nan
+24  40  64  0.530608403468  0.265304201734
+24  41  65  nan  nan
+24  42  66  nan  nan
+24  43  67  nan  nan
+25  19  44  nan  nan
+25  20  45  nan  nan
+25  21  46  0.0  0.0
+25  22  47  0.0  0.0
+25  23  48  0.755677988764  0.208958560902
+25  24  49  0.39386940592  0.0970413161268
+25  25  50  1.01794661015  0.181752960429
+25  26  51  1.07516296493  0.202220812784
+25  27  52  0.894019517015  0.11109468021
+25  28  53  0.828640777131  0.168013065791
+25  29  54  0.580557051251  0.130278525625
+25  30  55  0.535077663996  0.127421820703
+25  31  56  0.823470071058  0.17130673843
+25  32  57  1.30190797038  0.236673143678
+25  33  58  0.828589189204  0.390642550985
+25  34  59  0.0  0.0
+25  35  60  0.526383182369  0.263191591184
+25  36  61  0.0636414352646  0.0318207176323
+25  37  62  0.0  0.0
+25  38  63  nan  nan
+25  39  64  0.425826781667  0.212913390833
+25  40  65  nan  nan
+25  41  66  nan  nan
+25  42  67  nan  nan
+25  43  68  nan  nan
+25  44  69  nan  nan
+25  45  70  nan  nan
+26  19  45  nan  nan
+26  20  46  nan  nan
+26  21  47  nan  nan
+26  22  48  nan  nan
+26  23  49  0.0  0.0
+26  24  50  0.439977312764  0.219988656382
+26  25  51  1.23056878792  0.262336631245
+26  26  52  0.908461041542  0.163984788148
+26  27  53  1.04761075082  0.200418277683
+26  28  54  0.719062598944  0.115653507142
+26  29  55  0.758070440132  0.12161321219
+26  30  56  0.450790061868  0.0960201803888
+26  31  57  0.540570045594  0.160145980097
+26  32  58  0.647124407568  0.0799869641883
+26  33  59  0.489409568601  0.135714978363
+26  34  60  0.501915908132  0.0920018638858
+26  35  61  0.0  0.0
+26  36  62  0.655495010754  0.128612105414
+26  37  63  0.158972848759  0.0794864243793
+26  38  64  0.45970397156  0.121896036414
+26  39  65  0.318581255673  0.159290627837
+26  40  66  0.526665286183  0.263332643092
+26  41  67  0.456527943145  0.228263971573
+26  42  68  0.523810928171  0.261905464085
+26  43  69  nan  nan
+26  44  70  nan  nan
+26  45  71  nan  nan
+26  46  72  nan  nan
+26  47  73  nan  nan
+
+27  20  47   nan   nan
 27  21  48   nan   nan
 27  22  49   nan   nan
 27  23  50   nan   nan
@@ -1111,44 +1195,4 @@ if __name__ == '__main__':
 54  67  121  1.176221697700848  0.13973249409913455
 54  68  122  1.5428571428571427  0.2285735703978175
 54  69  123  0.6972960953114551  0.06792805060613513
-54  70  124   nan   nan"""
-    #
-    # A_x = []
-    target_array = []
-    # umax_dict = {}
-    #
-    #with open('level_param.json', 'r') as f:
-    #     data = json.load(f)
-    #
-    data = label.split('\n')
-    for line in data:
-        sline = line.split()
-        a_label = str(int(sline[2])-1)
-        Z = int(sline[0])
-        name = Z_label[Z]
-        target = a_label + name
-        target_array.append(target)
-
-    pool = mp.Pool(3)
-    out = pool.map(histogram, target_array)
-    for line in out:
-        val = '{}  {}  {}  {}  {}'.format(line[0], line[1], line[2], line[3], line[4])
-        print(val)
-    #np.savetxt('/home/agolas/Documents/ZNOxygen.dat', out)
-
-    #results_list = []
-
-    # for nucleus in target_array:
-    #     try:
-    #         result = pool.apply_async(histogram, args=(nucleus,))
-    #         print(result.get())
-    #         results_list.append(result.get())
-    #     except:
-    #         print('Compound {} Failed'.format(nucleus))
-
-
-    # pool = mp.Pool(3)
-    # out = pool.map(histogram, target_array)
-    # print(out)
-    # with open('ZNarray.dat', 'a') as f:
-    #     f.write(out)
+54  70  124   nan   nan
