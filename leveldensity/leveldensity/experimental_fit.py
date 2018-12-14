@@ -16,7 +16,7 @@ from scipy.optimize import curve_fit
 
 from utilities import Math
 from library import Parameters
-from level_parameters import CompositeGilbertCameronParameters as CGCP
+from level_parameters import BackShiftedFermiGasParameters as BSFGM
 ################################################################################
 class PostLevelDensityLoad(Parameters):
     """
@@ -319,19 +319,40 @@ class LevelDensityModelEstimates(PostLevelDensityLoad):
         return spin_parity
 
     @property
-    def atilda(self):
-
-        A = self.mass_number
-        atilda = 0.154*A + 6.3e-5*A**2
-        return atilda
-
-    @property
     def gamma(self):
         gam0 = 0.41029
         A = self.mass_number
 
         g = gam0/A**0.333
         return g
+
+    @property
+    def atilda(self):
+        A = self.mass_number
+        alpha = 0.0722396
+        beta = 0.195267
+
+        at = alpha*A + beta*A**(0.66667)
+
+        return at
+
+    @property
+    def cutoff_energy(self):
+
+        atilda = self.atilda
+        delta_w = self.shell_correction
+        gamma   = self.gamma
+        e_m = self.matching_energy
+        temp = self.temperature
+
+        f_u = 1 - np.exp(-1.0*gamma*e_m)
+        a = atilda*(1.0 + delta_w/e_m*f_u)
+
+        ln_rho_em = np.log(temp*np.exp(2.0*(a*e_m)**0.5)/
+            (12.0*a**(0.25)*e_m**(1.25)))
+
+        e0 = e_m - temp*ln_rho_em
+        return e0
 
     @property
     def temperature(self):
@@ -429,15 +450,6 @@ class LevelDensityAnalyzer(LevelDensityModelEstimates):
             rho_estimate = np.hstack((rho_low_est, rho_high_est))
 
         return rho_estimate
-
-
-    def cld_smoother(self):
-        ex_energy , index = self.cld_hist
-
-        mc = Math(x_data=ex_energy, y_data=index)
-        cld_curve = mc.smoothing_2d(window=9, mode='exponential')
-
-        return cld_curve
 
 
     def rho_estimation(self, curveform, x_data, y_data):

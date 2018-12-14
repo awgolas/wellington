@@ -114,7 +114,7 @@ class Math:
         array = np.asarray(array)
         sum_array = np.sum(array)
         norm = array/sum_array
-        
+
         return norm
 
 ################################################################################
@@ -167,8 +167,30 @@ class CurveFitting(Math):
             y_est = curve(self.x_data[i], *popt)
             params[i] = popt
             y_out[i] = y_est
-        
+
         return (np.asarray([self.x_data, y_out]) , params)
+
+    def parameter_determination(self, mode='exponential'):
+
+        if self.x_data is None:
+            raise TypeError('Independent variable data required')
+        if self.y_data is None:
+            raise TypeError('Dependent variable data required')
+        p0 = [0., 0., 0., 0.]
+        if mode == 'polynomial':
+            curve = self.polynomial_fit
+        elif mode == 'exponential':
+            curve = self.exponential_fit
+        else:
+            raise TypeError('Mode must be "polynomial" or "exponential"')
+
+        popt, pcov = curve_fit(curve, self.x_data, self.y_data, p0=p0,bounds=(-0.23,2), maxfev=1e9)
+        perr = np.sqrt(np.diag(pcov))
+
+        stddev = (np.sqrt(perr[1]) + np.sqrt(perr[2]))/2
+        print("Standard Deviation ", perr[1], perr[2])
+        return popt
+
 
     def polynomial_fit(self, x, A, B, C):
 
@@ -179,15 +201,16 @@ class CurveFitting(Math):
 
         return A*x**2 + B*x + C
 
-    def exponential_fit(self, x, A_est, B_est, C_est):
+    def exponential_fit(self, x, A_est, B_est, C_est, D_est):
 
         A_global, B_global, C_global = self.global_params
 
-        A = A_global + A_est
-        B = B_global #+ B_est
-        C = C_global #+ C_est
+        A = A_global
+        B = B_global + B_est
+        C = C_global + C_est
+        D = D_est*100.
 
-        return A*np.exp(B*(x-C))
+        return np.exp(B*(x-C)) + D
 
 
 ################################################################################
